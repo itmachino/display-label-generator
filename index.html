@@ -567,8 +567,12 @@ function rowName(r) {
 }
 
 // "208", "RM208", "rm 1,208.5" -> 208 / 1208.5. Returns NaN if it is not a price.
+// A currency sign from the sheet's number format (e.g. "£148.00" when the sheet
+// is set to UK pounds) is ignored: the sticker always says RM.
 function parsePrice(text) {
-  var t = String(text || '').replace(/^\s*rm\s*/i, '').replace(/,/g, '').trim();
+  var t = String(text || '').trim()
+    .replace(/^(rm|myr|gbp|usd|[£$€])\s*/i, '').replace(/\s*(rm|myr)$/i, '')
+    .replace(/,/g, '').trim();
   if (!/^\d+(\.\d{1,2})?$/.test(t)) return NaN;
   return parseFloat(t);
 }
