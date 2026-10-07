@@ -1,7 +1,7 @@
-Name,Colour,Size,Price,Barcode,Copies
-Lara Slingback Heels,Hana White,36,208.00,1800044001-36,1
-Hana OG Heels,Espresso,35,199.00,1800018003-35,1
-Lara Slingback Heels,Hana White,,208.00,1800044001,1
-Hana OG Heels With A Very Long Test Name For The Sticker,Espresso,42,199.00,1800018003-42,1
-Hana OG Heels,Espresso,40,89.90,1800018003-40,1
-Hana OG Heels,Espresso,41,199.00,1800018003-41,1
+SHOE,PRICE,SKU
+Lara Slingback Heels,208.00,1800044001-36
+Hana OG Heels,199.00,1800018003-35
+Lara Slingback Heels,208.00,1800044001
+Hana OG Heels With A Very Long Test Name For The Sticker,199.00,1800018003-42
+Hana OG Heels,89.90,1800018003-40
+Hana OG Heels,1199.00,1800018003-41

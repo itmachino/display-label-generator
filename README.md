@@ -2,12 +2,14 @@
 
 A small website that makes **price stickers for display shoes**.
 
-Each sticker shows the **shoe name and size**, the **colour**, the **price**, and a **barcode**.
+Website: **https://itmachino.github.io/display-label-generator/**
+
+Each sticker shows the **shoe**, the **price** and a **barcode** of the SKU.
 
 ```text
 ┌──────────────────────────────────┐
-│ Lara Slingback Heels - 36        │
-│ Hana White           RM 208.00   │
+│ Lara Slingback      RM 208.00    │
+│ Heels                            │
 │ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌  │
 │ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌  │
 └──────────────────────────────────┘
@@ -16,10 +18,10 @@ Each sticker shows the **shoe name and size**, the **colour**, the **price**, an
 
 ## Why the barcode matters most
 
-The barcode is the shoe's **Barcode / SKU from Shopify**, e.g. `1800044001-36`.
+The barcode is the shoe's **SKU from Shopify**, e.g. `1800044001-36`.
 
 When staff scan it with the **Stock check** tile on the POS phone, they see the stock for every size.
-If the barcode is wrong, the scan finds nothing. So the website checks every barcode before it prints.
+If the SKU is wrong, the scan finds nothing. So the website checks every barcode before it prints.
 
 ## How it works
 
@@ -29,8 +31,8 @@ flowchart LR
 ```
 
 1. Staff type the shoes into the **Google Sheet** (one row per sticker).
-2. Open the website. Press **Load**.
-3. Look at the preview. Fix any row in **red** in the sheet, then press **Load** again.
+2. Open the website. The list **loads by itself**.
+3. Look at the preview. Fix any row in **red** in the sheet, wait 1–2 minutes, then press **Load**.
 4. Press **Download PDF**.
 5. Open the PDF in the **NIIMBOT** app. Print at **100% size** (no "fit" or "scale").
 
@@ -38,42 +40,60 @@ Print **one** sticker first, scan it with Stock check, then print the rest.
 
 ## The sheet
 
-Row 1 must have these columns:
+Row 1 must be:
 
 | Column | What to type | Example |
 |---|---|---|
-| **Name** | Shoe name (needed) | Lara Slingback Heels |
-| **Colour** | Colour | Hana White |
-| **Size** | Size | 36 |
-| **Price** | Price in RM, numbers only (needed) | 208.00 |
-| **Barcode** | Barcode / SKU, exactly as in Shopify (needed) | 1800044001-36 |
-| **Copies** | How many stickers (empty = 1) | 2 |
+| **SHOE** | Shoe name | Lara Slingback Heels |
+| **PRICE** | Price in RM, numbers only | 208.00 |
+| **SKU** | The SKU, exactly as in Shopify. This is the barcode. | 1800044001-36 |
+| COPIES *(optional)* | How many stickers (empty = 1) | 2 |
 
-`sheet-template.csv` has these columns. In Google Sheets: **File → Import** it, then **File → Share → Publish to web** as **CSV**, and paste that link in the website.
+The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, so it is always there.
+
+- **To use another sheet on one computer:** paste its link in the box and press **Load**. That computer remembers it.
+- **To go back:** press **Use the usual sheet**. **Clear** empties the box.
+- **To change the sheet for everyone:** change `USUAL_SHEET_URL` and save to GitHub.
+
+`sheet-template.csv` has the columns. A new sheet must be published: **File → Share → Publish to web**, as **CSV**.
+
+## What is on the page
+
+| Part | What it does |
+|---|---|
+| **Your sticker list** | Loads the team sheet by itself. Or paste another sheet link, or drop a CSV file. |
+| **Print stickers for** | Print everything, or only one shoe. |
+| **Template** | **Price sticker** (shoe, price, barcode) or **Barcode only** (biggest bars). |
+| **Sticker settings** | Text sizes; show or hide shoe, price, size (from SKU), SKU text under the barcode, a line above the barcode; auto-fit long names. Remembered on this computer. **Reset to default** goes back to the standard sticker. |
+| **Preview** | Every sticker, exactly as it prints. **Download just this sticker** for a test print. |
+| **Barcode measurements** | Bar width, bar height, quiet zone, density and the read-back check, with ✓ or ✗. |
+| **Red / yellow lists** | Red rows will not print until fixed. Yellow rows print, but have a look. Click a row to see it. |
 
 ## What the website checks
 
 | Check | If wrong |
 |---|---|
-| Name, Price and Barcode are filled in | Red: will not print |
-| Price is a number (e.g. 208.00) | Red: will not print |
-| Barcode has only letters, numbers and "-", no spaces | Red: will not print |
-| The size at the end of the barcode matches the Size column | Red: will not print |
-| The same barcode has the same name and price on every row | Red: will not print |
+| PRICE and SKU are filled in | Red: will not print |
+| PRICE is a number (e.g. 208.00) | Red: will not print |
+| SKU has only letters, numbers and "-", no spaces | Red: will not print |
+| The same SKU has the same shoe and price on every row | Red: will not print |
 | The barcode fits on the sticker | Red: will not print |
 | The barcode reads back correctly (a barcode reader checks it) | Red: will not print |
-| Barcode looks like our usual code (10 numbers, "-", size) | Yellow: prints, but check it |
-| Barcode has a letter O, I or l (maybe meant 0 or 1) | Yellow: prints, but check it |
-| Name or colour too long, some words left off | Yellow: prints, but check it |
+| SHOE is empty | Yellow: prints with no name |
+| SKU looks like our usual SKU (10 numbers, "-", size) | Yellow: prints, but check it |
+| SKU has a letter O, I or l (maybe meant 0 or 1) | Yellow: prints, but check it |
+| Shoe name too long, some words left off | Yellow: prints, but check it |
+| Bars shorter than 10 mm | Yellow: prints, but check it |
 
 ## How the barcode is made (for IT)
 
-- **Type:** Code 128, the same type as our other shoe labels. Every POS scanner and phone camera can read it.
-- **Bar width:** the NIIMBOT B1 prints 8 dots per mm. Every bar is a whole number of dots: 3 dots (0.375 mm) if the code fits, otherwise 2 dots (0.25 mm). Bars never get rounded thinner or thicker by the printer.
-- **Quiet zone:** a blank space 10 bars wide at both ends, inside the part of the sticker the B1 can print.
-- **Drawing:** bars are drawn as exact shapes in the PDF, not as a picture, so they stay sharp.
-- **Check:** before printing, each barcode is drawn at the printer's resolution and read back with a barcode reader (ZXing). It must give back the same code.
-- **No text under the barcode.** This keeps the bars tall and easy to scan.
+- **Type:** Code 128, the same type as our other shoe labels. Every POS scanner and phone camera reads it.
+- **Bar width:** the NIIMBOT B1 prints 8 dots per mm. Every bar is a whole number of dots: as wide as fits (4, 3 or at least 2 dots = 0.25 mm). Bars never get rounded thinner or thicker by the printer.
+- **Quiet zone:** a blank space 10 bars wide at both ends, inside the part of the sticker the B1 prints.
+- **Drawing:** bars are exact shapes in the PDF, not a picture, so they stay sharp.
+- **Check:** before printing, each barcode is drawn at the printer's resolution and read back with a barcode reader (ZXing). It must give back the same SKU.
+
+Built from two earlier tools: the [Photoshoot Label Generator](https://itmachino.github.io/label-generator/) (sheet loading, settings, checks) and the [david-lee-mac Label Generator](https://david-lee-mac.github.io/label-generator/) (templates, barcode measurements, drop-a-CSV).
 
 ## Files in this folder
 
@@ -83,15 +103,16 @@ Row 1 must have these columns:
 | `index.html` | The whole website, in one file. |
 | `sheet-template.csv` | The columns the Google Sheet must have. |
 | `test-data/test-stickers.csv` | 6 test stickers, for the print test. |
+| `test-data/test-stickers.pdf` | Those 6 stickers, ready to print. |
 | `test-data/bad-rows.csv` | Rows with mistakes, to check the website catches them. |
 
 **Test stickers are for testing only.** Their prices are examples. Do not put them on shoes.
 
 ## Print test (do this before using it for real)
 
-Print `test-data/test-stickers.csv`. Every sticker must pass all checks:
+Print `test-data/test-stickers.pdf`. Every sticker must pass all checks:
 
-| # | Barcode | Stock check shows the right shoe | POS Search scanner finds it | Phone camera reads it |
+| # | SKU | Stock check shows the right shoe | POS Search scanner finds it | Phone camera reads it |
 |---|---|---|---|---|
 | 1 | 1800044001-36 | | | |
 | 2 | 1800018003-35 | | | |
@@ -105,10 +126,15 @@ Pass = every box ticked, each scan works the first time.
 ## Changing the website
 
 1. Edit `index.html`.
-2. Open it in a browser. Use **Or open a CSV file** with `test-data/test-stickers.csv`.
-3. Check the stickers still say "✓ Barcode checked".
-4. Save to GitHub. The website updates by itself in about a minute.
+2. Open it in a browser. Drop `test-data/test-stickers.csv` on the CSV box.
+3. Check the barcode measurements all show ✓.
+4. Save to GitHub:
 
-When the team sheet exists, put its published link in `USUAL_SHEET_URL` in `index.html`, so it loads for everyone.
+   PowerShell (Windows)
+   ```powershell
+   git add .
+   git commit -m "Short note of what changed"
+   git push
+   ```
 
-Made from the [Photoshoot Label Generator](https://itmachino.github.io/label-generator/).
+The website updates by itself in about a minute.
