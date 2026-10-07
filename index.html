@@ -794,17 +794,20 @@ function verifyBarcode(text, bc) {
 // measure(text, pt, bold, font) returns the text width in mm.
 //
 // Price sticker (default), 50 x 30 mm:
-//   Lara Slingback Heels        RM 208.00   <- shoe (bold, 1 or 2 lines) + price (bold, right)
+//   Lara Slingback Heels        RM 208.00   <- shoe (bold, 1 to 3 lines) + price (bold, end of the last line)
 //   ▌║▌║║▌║▌▌║║▌║▌║▌║║▌▌║▌║║▌║▌║▌║║▌║▌║      <- Code 128 barcode of the SKU: all the space that is left
 // Barcode only: just the barcode, as big as the sticker allows.
 
 var LABEL_W = 50, LABEL_H = 30;
 var PT_MM = 0.3528;          // 1pt in mm
 var PAD = 2.5;               // mm; keep text off the edge, thermal printers can clip
-var TEXT_MID = 5.2;          // mm; centre of the shoe/price line
-var TWO_LINE_Y = [3.4, 7.2]; // mm; centres when the shoe name takes two lines
-var TWO_LINE_MAX_PT = 10;    // two lines must fit the same band
-var TEXT_BOTTOM = 9.6;       // mm; bottom of the text band
+var TEXT_MID = 5.2;          // mm; centre of the shoe/price line when the name takes one line
+var TEXT_TOP = 1.9;          // mm; top of the capital letters on line 1 of a 2 or 3 line name
+var LINE_PITCH = 1.18;       // line spacing, in text heights
+var TWO_LINE_MAX_PT = 10;    // a 2-line name is at most this big
+var THREE_LINE_MAX_PT = 9;   // a 3-line name is at most this big
+var THREE_LINE_MIN_PT = 7;   // bold 7pt is the smallest the B1 still prints clearly
+var TEXT_BOTTOM = 9.6;       // mm; the barcode never starts above this
 var DIVIDER_Y = 10.2;        // mm; optional line above the barcode
 var DIVIDER_W = 0.25;        // mm; 2 printer dots
 var BAR_GAP = 0.8;           // mm between text/line and the bars
@@ -814,9 +817,9 @@ var SKU_GAP = 0.8;           // mm between the bars and the SKU text under them
 var PRICE_GAP = 2;           // mm between the shoe name and the price
 var SIZE_PREFIX = ' - ';     // "Lara Slingback Heels - 36", same as the photoshoot labels
 
-// Auto-fit: long text may shrink to 3/4 of its size (never below 8pt); past that the
-// shoe name goes onto two lines, then is cut at a whole word (no "...") and the
-// website lists it in yellow.
+// Auto-fit: a long name first shrinks a little, then goes onto two lines, then onto
+// three smaller lines (down to 7pt). Only a name that does not fit even then is cut
+// at a whole word (no "..."), and the website lists it.
 var FIT_SHRINK = 0.75, FIT_MIN_PT = 8;   // below 8pt the B1 (203 dpi) prints thin letters broken
 var ONE_LINE_SHRINK = 0.85;              // shrink this much before using two lines
 
@@ -860,57 +863,107 @@ function cutAtWord(text, fits) {
   return { kept: clean || kept, dropped: (kept.slice(clean.length) + ' ' + dropped).trim() };
 }
 
+function capMM(pt) { return pt * PT_MM * 0.72; }   // height of a capital letter, mm
+function descMM(pt) { return pt * PT_MM * 0.22; }  // how far g / y / p hang below the line, mm
+var PRICE_CLEAR = 0.3;                              // mm kept between the price and the line above it
+
+// Centre (mm from the top) of each name line, for n lines at pt.
+function lineYs(n, pt) {
+  if (n === 1) return [TEXT_MID];
+  var ys = [], top = TEXT_TOP + capMM(pt) / 2, pitch = pt * PT_MM * LINE_PITCH;
+  for (var i = 0; i < n; i++) ys.push(top + i * pitch);
+  return ys;
+}
+
 // Shoe name (+ " - size" when on). The size stays at the end and is never cut.
-// The price sits at the end of the LAST line, so line 1 of two may use the full
-// width (fullW) and the line next to the price is shorter (sideW).
-// Tries: one line shrinking a little; two lines (max TWO_LINE_MAX_PT); one line
-// down to minPt; two lines at minPt with the end of the name cut at a whole word.
-// Returns { lines: [..1 or 2..], pt, dropped }.
-function fitShoeLines(name, tail, fullW, sideW, maxPt, minPt, measure) {
-  var nm = (name || '').trim();
-  var words = nm.split(/\s+/);
-  var pt, i;
-  var width = function(t) { return measure(t, pt, true); };
-  var fitsFull = function(t) { return width(t) <= fullW; };
-  var fitsSide = function(t) { return width(t) <= sideW; };
-  var done = function(lines) { return { lines: lines, pt: pt, dropped: '' }; };
+// The price sits at the end of the LAST line, so lines above it use the full
+// width (fullW) and the line next to the price is shorter (sideW). layout() moves
+// the price down a little if it would touch the line above.
+// Tries, in order (the first that fits wins):
+//   1. one line, shrinking a little (to ONE_LINE_SHRINK)
+//   2. two lines, at most TWO_LINE_MAX_PT, down to minPt
+//   3. one line down to minPt
+//   4. three lines, at most THREE_LINE_MAX_PT, down to THREE_LINE_MIN_PT (auto-fit only)
+//   5. the smallest size, the end of the name cut at a whole word
+// Returns { lines: [..1 to 3..], ys: [centres], pt, dropped }.
+function fitShoeLines(name, tail, fullW, sideW, maxPt, minPt, autoFit, measure) {
+  var words = (name || '').trim().split(/\s+/);
+
+  // Width allowed for each of n lines: full width, except the line next to the price.
+  function widths(n) {
+    var w = [];
+    for (var i = 0; i < n; i++) w.push(i === n - 1 ? sideW : fullW);
+    return w;
+  }
+
+  // Fill the lines above the last one with as many words as fit; the rest must
+  // fit the last line. (Filling greedily leaves the least for the last line, so
+  // if this fails, no other split of the words works either.)
+  function split(n, pt) {
+    var w = widths(n), lines = [], k = 0;
+    for (var i = 0; i < n - 1; i++) {
+      var j = k;
+      while (j < words.length - 1 && measure(words.slice(k, j + 1).join(' '), pt, true) <= w[i]) j++;
+      if (j === k) return null;                       // not even one word fits this line
+      lines.push(words.slice(k, j).join(' '));
+      k = j;
+    }
+    var lastLine = words.slice(k).join(' ') + tail;
+    if (measure(lastLine, pt, true) > w[n - 1]) return null;
+    lines.push(lastLine);
+    return lines;
+  }
+
+  function attempt(n, from, to) {
+    for (var pt = from; pt >= to; pt -= 0.5) {
+      if (words.length < n) return null;
+      var lines = split(n, pt);
+      if (lines) return { lines: lines, ys: lineYs(n, pt), pt: pt, dropped: '' };
+    }
+    return null;
+  }
 
   var oneLineMin = Math.max(minPt, maxPt * ONE_LINE_SHRINK);
-  for (pt = maxPt; pt >= oneLineMin; pt -= 0.5) {
-    if (fitsSide(nm + tail)) return done([nm + tail]);
-  }
-  for (pt = Math.min(maxPt, TWO_LINE_MAX_PT); pt >= minPt; pt -= 0.5) {
-    // Most words on line 1 that still fit; the rest must fit next to the price.
-    for (i = words.length - 1; i >= 1; i--) {
-      var l1 = words.slice(0, i).join(' ');
-      var l2 = words.slice(i).join(' ') + tail;
-      if (fitsFull(l1) && fitsSide(l2)) return done([l1, l2]);
+  var found = attempt(1, maxPt, oneLineMin) ||
+              attempt(2, Math.min(maxPt, TWO_LINE_MAX_PT), minPt) ||
+              attempt(1, oneLineMin - 0.5, minPt) ||
+              (autoFit ? attempt(3, Math.min(maxPt, THREE_LINE_MAX_PT), THREE_LINE_MIN_PT) : null);
+  if (found) return found;
+
+  // Still too long: smallest size, as many lines as allowed, the end cut at a whole word.
+  var n = autoFit ? 3 : 2;
+  var pt = autoFit ? THREE_LINE_MIN_PT : Math.min(minPt, TWO_LINE_MAX_PT);
+  var w = widths(n), lines = [], rest = words.slice();
+  for (var i = 0; i < n - 1 && rest.length; i++) {
+    var j = 0;
+    while (j < rest.length && measure(rest.slice(0, j + 1).join(' '), pt, true) <= w[i]) j++;
+    if (j === 0) {                                     // one very long word: split it between letters
+      var c = 1;
+      while (c < rest[0].length - 1 && measure(rest[0].slice(0, c + 1), pt, true) <= w[i]) c++;
+      lines.push(rest[0].slice(0, c));
+      rest[0] = rest[0].slice(c);
+    } else {
+      lines.push(rest.slice(0, j).join(' '));
+      rest = rest.slice(j);
     }
   }
-  for (pt = oneLineMin - 0.5; pt >= minPt; pt -= 0.5) {
-    if (fitsSide(nm + tail)) return done([nm + tail]);
-  }
-  pt = Math.min(minPt, TWO_LINE_MAX_PT);
-  var n = 0;
-  while (n < words.length - 1 && fitsFull(words.slice(0, n + 1).join(' '))) n++;
-  var first, rest;
-  if (n > 0) {
-    first = words.slice(0, n).join(' ');
-    rest = words.slice(n).join(' ');
-  } else {
-    var c = 1;
-    while (c < words[0].length - 1 && fitsFull(words[0].slice(0, c + 1))) c++;
-    first = words[0].slice(0, c);
-    rest = [words[0].slice(c)].concat(words.slice(1)).join(' ');
-  }
-  if (fitsSide(rest + tail)) return done([first, rest + tail]);
-  var cut = cutAtWord(rest, function(t) { return fitsSide(t + tail); });
-  return { lines: [first, cut.kept + tail], pt: pt, dropped: cut.dropped };
+  var cut = cutAtWord(rest.join(' '), function(t) { return measure(t + tail, pt, true) <= w[lines.length]; });
+  lines.push(cut.kept + tail);
+  return { lines: lines, ys: lineYs(lines.length, pt), pt: pt, dropped: cut.dropped };
 }
 
 // Returns { items: [{ text, x, y, pt, bold, align, font }], bc, barTop, barBottom,
-//           divider: y or null, cuts: [{ field, dropped }] } — y is the vertical centre.
+//           divider: y or null, cuts: [{ field, dropped }], notes: [text] } — y is the vertical centre.
+// A 3-line name that leaves bars shorter than MIN_BAR_H is made smaller until they are tall enough.
 function layout(r, measure, st) {
+  var L = layoutWith(r, measure, st, st.shoePt);
+  while (L.nameLines === 3 && L.namePt > THREE_LINE_MIN_PT && L.barBottom - L.barTop < MIN_BAR_H) {
+    L = layoutWith(r, measure, st, Math.min(L.namePt, THREE_LINE_MAX_PT) - 0.5);
+  }
+  return L;
+}
+
+function layoutWith(r, measure, st, shoeMaxPt) {
   var maxW = LABEL_W - 2 * PAD;
   var items = [], cuts = [];
   var barcodeOnly = st.template === 'barcode';
@@ -918,35 +971,48 @@ function layout(r, measure, st) {
   var showPrice = !barcodeOnly && st.showPrice && r.priceText;
   var hasText = !barcodeOnly && (st.showShoe || st.showPrice);   // keep the band even if a cell is empty
 
+  var notes = [], nameLines = 0, namePt = 0;
   var priceW = showPrice ? measure(r.priceText, st.pricePt, true) + PRICE_GAP : 0;
   var priceY = TEXT_MID;
+  var textBottom = 0;   // lowest point of any text, mm
   if (showShoe) {
     var tail = st.showSize && r.sizeFromSku ? SIZE_PREFIX + r.sizeFromSku : '';
     var name = r.shoe || 'Size';
     if (!r.shoe) tail = ' ' + r.sizeFromSku;
-    var f = fitShoeLines(name, tail, maxW, maxW - priceW, st.shoePt, fitFloor(st.shoePt, st.autoFit), measure);
-    if (f.lines.length === 1) {
-      items.push({ text: f.lines[0], x: PAD, y: TEXT_MID, pt: f.pt, bold: true, align: 'left' });
-    } else {
-      f.lines.forEach(function(t, i) { items.push({ text: t, x: PAD, y: TWO_LINE_Y[i], pt: f.pt, bold: true, align: 'left' }); });
-      priceY = TWO_LINE_Y[1];   // the price sits at the end of the second line
+    var f = fitShoeLines(name, tail, maxW, maxW - priceW, shoeMaxPt, Math.min(shoeMaxPt, fitFloor(st.shoePt, st.autoFit)), st.autoFit, measure);
+    nameLines = f.lines.length;
+    namePt = f.pt;
+    f.lines.forEach(function(t, i) { items.push({ text: t, x: PAD, y: f.ys[i], pt: f.pt, bold: true, align: 'left' }); });
+    var lastY = f.ys[f.ys.length - 1];
+    // The price sits at the end of the last line. If the line above reaches over
+    // it, move the price down until it clears that line's g / y / p tails.
+    priceY = lastY;
+    if (showPrice && f.ys.length > 1) {
+      var aboveBottom = f.ys[f.ys.length - 2] + capMM(f.pt) / 2 + descMM(f.pt);
+      priceY = Math.max(lastY, aboveBottom + PRICE_CLEAR + capMM(st.pricePt) / 2);
     }
+    textBottom = lastY + capMM(f.pt) / 2 + descMM(f.pt);
     if (f.dropped) cuts.push({ field: 'SHOE', dropped: f.dropped });
+    else if (f.pt < FIT_MIN_PT) notes.push('SHOE is long, printed small (' + f.pt + 'pt) on ' + f.lines.length + ' lines. Check it is easy to read, or shorten it');
   }
   if (showPrice) {
     items.push({ text: r.priceText, x: LABEL_W - PAD, y: priceY, pt: st.pricePt, bold: true, align: 'right' });
+    textBottom = Math.max(textBottom, priceY + capMM(st.pricePt) / 2 + descMM(st.pricePt));   // the "," in 1,241.20 hangs down
   }
 
-  var divider = hasText && st.showDivider ? DIVIDER_Y : null;
-  var barTop = !hasText ? BAR_TOP_ONLY : (divider ? DIVIDER_Y + DIVIDER_W / 2 : TEXT_BOTTOM) + BAR_GAP;
+  // The barcode starts under the lowest text (never higher than TEXT_BOTTOM).
+  var bandBottom = Math.max(TEXT_BOTTOM, textBottom + 0.3);
+  var divider = hasText && st.showDivider ? Math.max(DIVIDER_Y, bandBottom + 0.4) : null;
+  var barTop = !hasText ? BAR_TOP_ONLY : (divider ? divider + DIVIDER_W / 2 : bandBottom) + BAR_GAP;
   var barBottom = BAR_BOTTOM;
   if (st.showSkuText && r.code) {
-    var capMM = st.skuPt * PT_MM * 0.72;
-    items.push({ text: r.code, x: LABEL_W / 2, y: BAR_BOTTOM - capMM / 2, pt: st.skuPt, bold: false, align: 'center', font: st.skuFont });
-    barBottom = BAR_BOTTOM - capMM - SKU_GAP;
+    var skuCap = capMM(st.skuPt);
+    items.push({ text: r.code, x: LABEL_W / 2, y: BAR_BOTTOM - skuCap / 2, pt: st.skuPt, bold: false, align: 'center', font: st.skuFont });
+    barBottom = BAR_BOTTOM - skuCap - SKU_GAP;
   }
 
-  return { items: items, bc: r.bc && r.bc.ok ? r.bc : null, barTop: barTop, barBottom: barBottom, divider: divider, cuts: cuts };
+  return { items: items, bc: r.bc && r.bc.ok ? r.bc : null, barTop: barTop, barBottom: barBottom, divider: divider, cuts: cuts, notes: notes,
+           nameLines: nameLines, namePt: namePt };
 }
 
 // Items store the visual centre of the capital letters; draw on the baseline.
@@ -1131,7 +1197,7 @@ function renderCountAndWarnings(list) {
   var st = getSettings(), measure = pdfMeasure();
   var notesFor = function(r) {
     var L = layout(r, measure, st);
-    var n = r.warnings.concat(L.cuts.map(function(c) { return c.field + ' is too long, "' + c.dropped + '" will not print'; }));
+    var n = r.warnings.concat(L.notes, L.cuts.map(function(c) { return c.field + ' is too long even on 3 small lines, "' + c.dropped + '" will not print. Shorten it in the sheet'; }));
     if (L.bc && L.barBottom - L.barTop < MIN_BAR_H) n.push('barcode bars are short, untick "SKU under barcode" or make the text smaller');
     return n;
   };

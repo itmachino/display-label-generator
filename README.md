@@ -16,6 +16,9 @@ Each sticker shows the **shoe**, the **price** and a **barcode** of the SKU.
    50 × 30 mm · NIIMBOT B1
 ```
 
+Long names fit by themselves: first a little smaller, then 2 lines, then 3 smaller lines.
+The price sits at the end of the last line. Only a name of about 80+ characters gets its last words left off.
+
 ## Why the barcode matters most
 
 The barcode is the shoe's **SKU from Shopify**, e.g. `1800044001-36`.
@@ -82,7 +85,8 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 | SHOE is empty | Yellow: prints with no name |
 | SKU looks like our usual SKU (10 numbers, "-", size) | Yellow: prints, but check it |
 | SKU has a letter O, I or l (maybe meant 0 or 1) | Yellow: prints, but check it |
-| Shoe name too long, some words left off | Yellow: prints, but check it |
+| Shoe name very long: printed small (7pt) on 3 lines | Yellow: prints, but check it is easy to read |
+| Shoe name too long even on 3 small lines, last words left off | Yellow: prints, but shorten it in the sheet |
 | Bars shorter than 10 mm | Yellow: prints, but check it |
 
 ## How the barcode is made (for IT)
