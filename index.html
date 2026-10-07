@@ -251,9 +251,13 @@
 
         <div class="settings-title">Template</div>
         <div class="template-selector">
-          <button type="button" class="template-option active" id="tplPrice" onclick="selectTemplate('price')">
-            <div class="tpl-name">Price sticker</div>
-            <div class="tpl-desc">Shoe, price and barcode</div>
+          <button type="button" class="template-option active" id="tplBoxed" onclick="selectTemplate('boxed')">
+            <div class="tpl-name">Standard</div>
+            <div class="tpl-desc">Big name, small price, barcode</div>
+          </button>
+          <button type="button" class="template-option" id="tplPrice" onclick="selectTemplate('price')">
+            <div class="tpl-name">Big price</div>
+            <div class="tpl-desc">Shoe and a big bold price</div>
           </button>
           <button type="button" class="template-option" id="tplBarcode" onclick="selectTemplate('barcode')">
             <div class="tpl-name">Barcode only</div>
@@ -963,7 +967,78 @@ function layout(r, measure, st) {
   return L;
 }
 
+// "Name | Price" sticker (the standard): the name big on the left, the price small
+// and not bold on the right, a line under both, then the barcode.
+//   Lara Slingback Heels      RM 208.00
+//   ───────────────────────────────────
+//   ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌║▌║║
+var BOX_TOP = 1.2;            // mm; top of the name / price area
+var BOX_PRICE_MAX_PT = 8;     // the price is smaller than the name, and not bold
+var BOX_PRICE_MIN_PT = 6.5;
+var BOX_COL_MIN = 12;         // mm; narrowest price box
+var BOX_COL_MAX = 17;         // mm; widest price box (the rest is for the name)
+var BOX_GAP = 1.2;            // mm between the vertical line and the text on each side
+var RULE_W = 0.25;            // mm; lines are 2 printer dots thick
+
+function snapDot(v) { return Math.round(v / DOT) * DOT; }
+
+function layoutBoxed(r, measure, st, shoeMaxPt) {
+  var items = [], cuts = [], notes = [];
+  var showShoe = st.showShoe && (r.shoe || (st.showSize && r.sizeFromSku));
+  var showPrice = st.showPrice && r.priceText;
+
+  // Price column: as narrow as the price allows; the price shrinks if it is very long.
+  var pPt = BOX_PRICE_MAX_PT, colW = BOX_COL_MIN;
+  if (showPrice) {
+    while (pPt > BOX_PRICE_MIN_PT && measure(r.priceText, pPt, false) + 1 > BOX_COL_MAX) pPt -= 0.5;
+    colW = Math.min(BOX_COL_MAX, Math.max(BOX_COL_MIN, measure(r.priceText, pPt, false) + 1));
+  }
+  var lineX = snapDot(LABEL_W - PAD - colW - BOX_GAP);   // where name and price meet (no line drawn)
+  var nameW = lineX - BOX_GAP - PAD;
+
+  var nameLines = 0, namePt = 0, nameTop = BOX_TOP, nameBottom = 0;
+  var f = null;
+  if (showShoe) {
+    var tail = st.showSize && r.sizeFromSku ? SIZE_PREFIX + r.sizeFromSku : '';
+    var name = r.shoe || 'Size';
+    if (!r.shoe) tail = ' ' + r.sizeFromSku;
+    f = fitShoeLines(name, tail, nameW, nameW, shoeMaxPt, Math.min(shoeMaxPt, fitFloor(st.shoePt, st.autoFit)), st.autoFit, measure);
+    nameLines = f.lines.length;
+    namePt = f.pt;
+    nameTop = f.ys[0] - capMM(f.pt) / 2;
+    nameBottom = f.ys[f.ys.length - 1] + capMM(f.pt) / 2 + descMM(f.pt);
+    if (f.dropped) cuts.push({ field: 'SHOE', dropped: f.dropped });
+    else if (f.pt < FIT_MIN_PT) notes.push('SHOE is long, printed small (' + f.pt + 'pt) on ' + f.lines.length + ' lines. Check it is easy to read, or shorten it');
+  }
+
+  // The box is as tall as the name needs (at least TEXT_BOTTOM); name and price are centred in it.
+  var bandBottom = snapDot(Math.max(TEXT_BOTTOM, nameBottom + 0.6));
+  var mid = (BOX_TOP + bandBottom) / 2;
+  if (f) {
+    var shift = mid - (nameTop + nameBottom) / 2;
+    f.lines.forEach(function(t, i) { items.push({ text: t, x: PAD, y: f.ys[i] + shift, pt: f.pt, bold: true, align: 'left' }); });
+  }
+  if (showPrice) {
+    // Always smaller than the name (by 1pt if the name had to shrink), never below BOX_PRICE_MIN_PT.
+    if (f && pPt > f.pt - 1) pPt = Math.max(BOX_PRICE_MIN_PT, f.pt - 1);
+    items.push({ text: r.priceText, x: LABEL_W - PAD, y: mid, pt: pPt, bold: false, align: 'right' });
+  }
+
+  // Line under the name and price ("Line above barcode" setting).
+  var rules = st.showDivider ? [{ x: PAD, y: bandBottom, w: LABEL_W - 2 * PAD, h: RULE_W }] : [];
+  var barTop = bandBottom + (rules.length ? RULE_W : 0) + BAR_GAP;
+  var barBottom = BAR_BOTTOM;
+  if (st.showSkuText && r.code) {
+    var skuCap = capMM(st.skuPt);
+    items.push({ text: r.code, x: LABEL_W / 2, y: BAR_BOTTOM - skuCap / 2, pt: st.skuPt, bold: false, align: 'center', font: st.skuFont });
+    barBottom = BAR_BOTTOM - skuCap - SKU_GAP;
+  }
+  return { items: items, bc: r.bc && r.bc.ok ? r.bc : null, barTop: barTop, barBottom: barBottom, divider: null,
+           rules: rules, cuts: cuts, notes: notes, nameLines: nameLines, namePt: namePt };
+}
+
 function layoutWith(r, measure, st, shoeMaxPt) {
+  if (st.template === 'boxed') return layoutBoxed(r, measure, st, shoeMaxPt);
   var maxW = LABEL_W - 2 * PAD;
   var items = [], cuts = [];
   var barcodeOnly = st.template === 'barcode';
@@ -1025,20 +1100,21 @@ function barRects(bc) {
 
 // ─── SETTINGS (remembered on this computer) ─────────────────
 
-var SETTINGS_KEY = 'displayLabel.settings.v1';
-// Standard sticker: shoe + price + barcode. "Reset to default" goes back to these.
+var SETTINGS_KEY = 'displayLabel.settings.v2';   // v2: "Standard" (name | price) became the default
+// Standard sticker: big name, small price, a line, barcode. "Reset to default" goes back to these.
 var DEFAULTS = {
-  template: 'price',
+  template: 'boxed',
   showShoe: true, shoePt: 11,
-  showPrice: true, pricePt: 13,
+  showPrice: true, pricePt: 13,   // used by "Big price"; "Standard" sizes its price by itself
   showSize: false,
   showSkuText: false, skuPt: 7, skuFont: 'helvetica',
-  showDivider: false,
+  showDivider: true,
   autoFit: true
 };
+var TEMPLATES = ['boxed', 'price', 'barcode'];
 var SLIDERS = [['shoePt', 'showShoe'], ['pricePt', 'showPrice'], ['skuPt', 'showSkuText']];
 var CHECKS = ['showShoe', 'showPrice', 'showSize', 'showSkuText', 'showDivider', 'autoFit'];
-var currentTemplate = 'price';
+var currentTemplate = 'boxed';
 
 function getSettings() {
   var st = { template: currentTemplate, skuFont: document.getElementById('skuFont').value };
@@ -1053,7 +1129,7 @@ function applySettings(st) {
   CHECKS.forEach(function(k) { document.getElementById(k).checked = pick(k, 'boolean'); });
   SLIDERS.forEach(function(s) { document.getElementById(s[0]).value = pick(s[0], 'number'); });
   document.getElementById('skuFont').value = st.skuFont === 'courier' ? 'courier' : 'helvetica';
-  setTemplate(st.template === 'barcode' ? 'barcode' : 'price');
+  setTemplate(TEMPLATES.indexOf(st.template) !== -1 ? st.template : DEFAULTS.template);
   syncControls();
 }
 
@@ -1072,12 +1148,14 @@ function isDefaultSettings(st) {
 }
 
 // Slider readouts, grey out hidden lines and text settings on "Barcode only".
+// On "Standard" the price size is automatic (always smaller than the name).
 function syncControls() {
   var barcodeOnly = currentTemplate === 'barcode';
   SLIDERS.forEach(function(s) {
     var slider = document.getElementById(s[0]);
-    var on = document.getElementById(s[1]).checked && !(barcodeOnly && s[1] !== 'showSkuText');
-    document.getElementById(s[0] + 'Val').textContent = slider.value + 'pt';
+    var autoPrice = s[0] === 'pricePt' && currentTemplate === 'boxed';
+    var on = document.getElementById(s[1]).checked && !(barcodeOnly && s[1] !== 'showSkuText') && !autoPrice;
+    document.getElementById(s[0] + 'Val').textContent = autoPrice ? 'auto' : slider.value + 'pt';
     slider.disabled = !on;
     slider.closest('.fld').classList.toggle('off', !on);
   });
@@ -1092,6 +1170,7 @@ function syncControls() {
 
 function setTemplate(tpl) {
   currentTemplate = tpl;
+  document.getElementById('tplBoxed').classList.toggle('active', tpl === 'boxed');
   document.getElementById('tplPrice').classList.toggle('active', tpl === 'price');
   document.getElementById('tplBarcode').classList.toggle('active', tpl === 'barcode');
 }
@@ -1105,7 +1184,7 @@ function onSettingsChange() { syncControls(); saveSettings(); updatePreview(); }
 
 function resetSettings() {
   if (isDefaultSettings(getSettings())) return;
-  if (!window.confirm('Reset the sticker back to the standard settings (shoe, price and barcode)?')) return;
+  if (!window.confirm('Reset the sticker back to the standard settings (big name, small price, barcode)?')) return;
   applySettings(DEFAULTS);
   saveSettings();
   updatePreview();
@@ -1238,6 +1317,7 @@ function updatePreview() {
 
   ctx.fillStyle = '#000';
   if (L.divider) ctx.fillRect(PAD, L.divider - DIVIDER_W / 2, W - 2 * PAD, DIVIDER_W);
+  (L.rules || []).forEach(function(q) { ctx.fillRect(q.x, q.y, q.w, q.h); });
   if (L.bc) {
     barRects(L.bc).forEach(function(b) { ctx.fillRect(b.x, L.barTop, b.w, L.barBottom - L.barTop); });
   } else {
@@ -1318,6 +1398,7 @@ async function buildPdf(list, onProgress) {
       if (done > 0) doc.addPage([W, H], 'landscape');
       doc.setFillColor(0, 0, 0);
       if (L.divider) doc.rect(PAD, L.divider - DIVIDER_W / 2, W - 2 * PAD, DIVIDER_W, 'F');
+      (L.rules || []).forEach(function(q) { doc.rect(q.x, q.y, q.w, q.h, 'F'); });
       barRects(L.bc).forEach(function(b) { doc.rect(b.x, L.barTop, b.w, L.barBottom - L.barTop, 'F'); });
       doc.setTextColor(0, 0, 0);
       L.items.forEach(function(it) {

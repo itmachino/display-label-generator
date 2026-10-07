@@ -8,8 +8,9 @@ Each sticker shows the **shoe**, the **price** and a **barcode** of the SKU.
 
 ```text
 ┌──────────────────────────────────┐
-│ Lara Slingback      RM 208.00    │
-│ Heels                            │
+│ Hana OG Flats                    │
+│ in White             RM 148.00   │  ← name big and bold, price small
+│──────────────────────────────────│
 │ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌  │
 │ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌  │
 └──────────────────────────────────┘
@@ -17,7 +18,7 @@ Each sticker shows the **shoe**, the **price** and a **barcode** of the SKU.
 ```
 
 Long names fit by themselves: first a little smaller, then 2 lines, then 3 smaller lines.
-The price sits at the end of the last line. Only a name of about 80+ characters gets its last words left off.
+The price is always smaller than the name. Only a very long name (about 60+ characters) gets its last words left off.
 
 ## Why the barcode matters most
 
@@ -66,7 +67,7 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 |---|---|
 | **Your sticker list** | Loads the team sheet by itself. Or paste another sheet link, or drop a CSV file. |
 | **Print stickers for** | Print everything, or only one shoe. |
-| **Template** | **Price sticker** (shoe, price, barcode) or **Barcode only** (biggest bars). |
+| **Template** | **Standard** (big name, small price, line, barcode), **Big price** (big bold price at the end of the name) or **Barcode only** (biggest bars). |
 | **Sticker settings** | Text sizes; show or hide shoe, price, size (from SKU), SKU text under the barcode, a line above the barcode; auto-fit long names. Remembered on this computer. **Reset to default** goes back to the standard sticker. |
 | **Preview** | Every sticker, exactly as it prints. **Download just this sticker** for a test print. |
 | **Barcode measurements** | Bar width, bar height, quiet zone, density and the read-back check, with ✓ or ✗. |
