@@ -861,51 +861,50 @@ function cutAtWord(text, fits) {
 }
 
 // Shoe name (+ " - size" when on). The size stays at the end and is never cut.
+// The price sits at the end of the LAST line, so line 1 of two may use the full
+// width (fullW) and the line next to the price is shorter (sideW).
 // Tries: one line shrinking a little; two lines (max TWO_LINE_MAX_PT); one line
 // down to minPt; two lines at minPt with the end of the name cut at a whole word.
 // Returns { lines: [..1 or 2..], pt, dropped }.
-function fitShoeLines(name, tail, maxW, maxPt, minPt, measure) {
+function fitShoeLines(name, tail, fullW, sideW, maxPt, minPt, measure) {
   var nm = (name || '').trim();
   var words = nm.split(/\s+/);
   var pt, i;
   var width = function(t) { return measure(t, pt, true); };
-  var fits = function(t) { return width(t) <= maxW; };
+  var fitsFull = function(t) { return width(t) <= fullW; };
+  var fitsSide = function(t) { return width(t) <= sideW; };
   var done = function(lines) { return { lines: lines, pt: pt, dropped: '' }; };
 
   var oneLineMin = Math.max(minPt, maxPt * ONE_LINE_SHRINK);
   for (pt = maxPt; pt >= oneLineMin; pt -= 0.5) {
-    if (fits(nm + tail)) return done([nm + tail]);
+    if (fitsSide(nm + tail)) return done([nm + tail]);
   }
   for (pt = Math.min(maxPt, TWO_LINE_MAX_PT); pt >= minPt; pt -= 0.5) {
-    var best = null;
-    for (i = 1; i < words.length; i++) {
+    // Most words on line 1 that still fit; the rest must fit next to the price.
+    for (i = words.length - 1; i >= 1; i--) {
       var l1 = words.slice(0, i).join(' ');
       var l2 = words.slice(i).join(' ') + tail;
-      if (fits(l1) && fits(l2)) {
-        var m = Math.max(width(l1), width(l2));
-        if (!best || m < best.m) best = { m: m, lines: [l1, l2] };
-      }
+      if (fitsFull(l1) && fitsSide(l2)) return done([l1, l2]);
     }
-    if (best) return done(best.lines);
   }
   for (pt = oneLineMin - 0.5; pt >= minPt; pt -= 0.5) {
-    if (fits(nm + tail)) return done([nm + tail]);
+    if (fitsSide(nm + tail)) return done([nm + tail]);
   }
   pt = Math.min(minPt, TWO_LINE_MAX_PT);
   var n = 0;
-  while (n < words.length - 1 && fits(words.slice(0, n + 1).join(' '))) n++;
+  while (n < words.length - 1 && fitsFull(words.slice(0, n + 1).join(' '))) n++;
   var first, rest;
   if (n > 0) {
     first = words.slice(0, n).join(' ');
     rest = words.slice(n).join(' ');
   } else {
     var c = 1;
-    while (c < words[0].length - 1 && fits(words[0].slice(0, c + 1))) c++;
+    while (c < words[0].length - 1 && fitsFull(words[0].slice(0, c + 1))) c++;
     first = words[0].slice(0, c);
     rest = [words[0].slice(c)].concat(words.slice(1)).join(' ');
   }
-  if (fits(rest + tail)) return done([first, rest + tail]);
-  var cut = cutAtWord(rest, function(t) { return fits(t + tail); });
+  if (fitsSide(rest + tail)) return done([first, rest + tail]);
+  var cut = cutAtWord(rest, function(t) { return fitsSide(t + tail); });
   return { lines: [first, cut.kept + tail], pt: pt, dropped: cut.dropped };
 }
 
@@ -919,22 +918,23 @@ function layout(r, measure, st) {
   var showPrice = !barcodeOnly && st.showPrice && r.priceText;
   var hasText = !barcodeOnly && (st.showShoe || st.showPrice);   // keep the band even if a cell is empty
 
-  var priceW = 0;
-  if (showPrice) {
-    items.push({ text: r.priceText, x: LABEL_W - PAD, y: TEXT_MID, pt: st.pricePt, bold: true, align: 'right' });
-    priceW = measure(r.priceText, st.pricePt, true) + PRICE_GAP;
-  }
+  var priceW = showPrice ? measure(r.priceText, st.pricePt, true) + PRICE_GAP : 0;
+  var priceY = TEXT_MID;
   if (showShoe) {
     var tail = st.showSize && r.sizeFromSku ? SIZE_PREFIX + r.sizeFromSku : '';
     var name = r.shoe || 'Size';
     if (!r.shoe) tail = ' ' + r.sizeFromSku;
-    var f = fitShoeLines(name, tail, maxW - priceW, st.shoePt, fitFloor(st.shoePt, st.autoFit), measure);
+    var f = fitShoeLines(name, tail, maxW, maxW - priceW, st.shoePt, fitFloor(st.shoePt, st.autoFit), measure);
     if (f.lines.length === 1) {
       items.push({ text: f.lines[0], x: PAD, y: TEXT_MID, pt: f.pt, bold: true, align: 'left' });
     } else {
       f.lines.forEach(function(t, i) { items.push({ text: t, x: PAD, y: TWO_LINE_Y[i], pt: f.pt, bold: true, align: 'left' }); });
+      priceY = TWO_LINE_Y[1];   // the price sits at the end of the second line
     }
     if (f.dropped) cuts.push({ field: 'SHOE', dropped: f.dropped });
+  }
+  if (showPrice) {
+    items.push({ text: r.priceText, x: LABEL_W - PAD, y: priceY, pt: st.pricePt, bold: true, align: 'right' });
   }
 
   var divider = hasText && st.showDivider ? DIVIDER_Y : null;
