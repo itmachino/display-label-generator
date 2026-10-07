@@ -8,8 +8,8 @@ Each sticker shows the **shoe**, the **price** and a **barcode** of the SKU.
 
 ```text
 ┌──────────────────────────────────┐
-│ Hana OG Flats                RM  │
-│ in White                 148.00  │  ← name big and bold (max 2 lines), price small
+│ Hana OG Flats                    │
+│ in White             RM 148.00   │  ← name big and bold (max 2 lines), price small on the bottom line
 │──────────────────────────────────│
 │ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌  │
 │ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌  │
@@ -18,9 +18,10 @@ Each sticker shows the **shoe**, the **price** and a **barcode** of the SKU.
 ```
 
 The name is never more than **2 lines**. A long name gets smaller by itself (down to 7pt) until it fits in 2 lines,
-split where it reads best (a new line before "in <colour>"). The price is always smaller than the name, and
-gets smaller first if the name needs room. Every sticker has the same shape: the line and barcode never move.
-Only a very long name (about 55+ characters) gets its last words left off.
+split where it reads best (a new line before "in <colour>"). The price sits at the bottom right, on the
+name's last line; it is always smaller than the name, and gets smaller first if the name needs room.
+Every sticker has the same shape: the line and barcode never move.
+Only a very long name (about 60+ characters) gets its last words left off.
 
 ## Why the barcode matters most
 
