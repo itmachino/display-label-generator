@@ -1,0 +1,9 @@
+Name,Colour,Size,Price,Barcode,Copies
+Size Mismatch,Espresso,36,199.00,1800018003-35,1
+Space In Code,Espresso,35,199.00,1800018003 -35,1
+Bad Price,Espresso,35,abc,1800018003-35,1
+No Barcode,Espresso,35,199.00,,1
+Letter O,Espresso,35,199.00,18000180O3-35,1
+Bad Copies,Espresso,36,199.00,1800018003-36,0
+Too Long,Espresso,,199.00,ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn,1
+RM Price Ok,Espresso,37,RM 1209.5,1800018003-37,2

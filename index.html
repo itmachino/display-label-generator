@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Display Label Generator</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='4' y='14' width='56' height='36' rx='4' fill='%23fff' stroke='%23222' stroke-width='3'/><rect x='11' y='20' width='26' height='4' fill='%23222'/><rect x='40' y='20' width='13' height='5' fill='%23222'/><g fill='%23222'><rect x='11' y='30' width='2' height='14'/><rect x='15' y='30' width='4' height='14'/><rect x='21' y='30' width='2' height='14'/><rect x='25' y='30' width='6' height='14'/><rect x='33' y='30' width='2' height='14'/><rect x='37' y='30' width='4' height='14'/><rect x='43' y='30' width='2' height='14'/><rect x='47' y='30' width='6' height='14'/></g></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<!-- Barcode reader: used only to double-check every barcode before it is printed. -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f5; color: #1a1a1a; min-height: 100vh;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { color: #666; font-size: 15px; margin-bottom: 40px; }
+
+  .step {
+    background: #fff; border: 1px solid #e0e0e0;
+    border-radius: 12px; padding: 24px; margin-bottom: 20px;
+  }
+  .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .step-number {
+    width: 32px; height: 32px; background: #1a1a1a; color: #fff;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; flex-shrink: 0;
+  }
+  .step-title { font-size: 16px; font-weight: 600; }
+
+  .sheet-input-row { display: flex; gap: 10px; margin-bottom: 8px; }
+  .sheet-input-row input {
+    flex: 1; min-width: 0; padding: 12px 14px; border: 1px solid #ddd;
+    border-radius: 8px; font-size: 14px; outline: none;
+  }
+  .sheet-input-row input:focus { border-color: #1a1a1a; }
+  .sheet-status { font-size: 15px; font-weight: 600; margin: 4px 0 8px; color: #666; }
+  .sheet-status.error { color: #dc2626; }
+  .sheet-status.success { color: #16a34a; }
+  .file-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: #555; margin: 4px 0 8px; }
+
+  .btn-sm {
+    padding: 12px 20px; background: #1a1a1a; color: #fff;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-sm:hover { background: #333; }
+  .btn-sm:disabled { background: #ccc; cursor: not-allowed; }
+  .btn-sm.ghost { background: #fff; color: #1a1a1a; border: 1px solid #ccc; }
+  .btn-sm.ghost:hover { background: #f3f3f3; }
+
+  .rows-preview { margin-top: 12px; max-height: 220px; overflow: auto; font-size: 12px; border: 1px solid #eee; border-radius: 6px; }
+  .rows-preview table { width: 100%; border-collapse: collapse; }
+  .rows-preview th, .rows-preview td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+  .rows-preview th { background: #f9f9f9; font-weight: 600; position: sticky; top: 0; }
+
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 16px 24px; background: #1a1a1a; color: #fff;
+    border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn:hover { background: #333; }
+  .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+  .status { text-align: center; margin-top: 12px; font-size: 14px; color: #666; }
+  .status.error { color: #dc2626; }
+  .status.success { color: #16a34a; }
+  .help-text { font-size: 13px; color: #888; margin-top: 8px; line-height: 1.5; }
+
+  .progress-bar-container { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin-top: 12px; overflow: hidden; display: none; }
+  .progress-bar { height: 100%; background: #1a1a1a; border-radius: 3px; transition: width 0.3s ease; width: 0%; }
+
+  details > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: '\25B8'; display: inline-block; transition: transform 0.15s; }
+  details[open] > summary::before { transform: rotate(90deg); }
+
+  .instructions {
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+    padding: 10px 16px; margin-top: 12px; font-size: 13px; color: #92400e; line-height: 1.6;
+  }
+  .instructions summary { font-weight: 600; }
+  .instructions ol, .instructions ul { margin: 6px 0 0 18px; }
+  .instructions p { margin-top: 6px; }
+  .instructions table { border-collapse: collapse; margin-top: 6px; }
+  .instructions td, .instructions th { border: 1px solid #fde68a; padding: 3px 8px; text-align: left; vertical-align: top; }
+
+  .count-line { font-size: 14px; color: #333; margin: 4px 0 12px; }
+  .count-line strong { font-size: 16px; }
+  .warn-box {
+    background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+    border-radius: 8px; padding: 10px 14px; font-size: 13px; line-height: 1.6; margin-top: 12px;
+  }
+  .warn-box ul { margin: 4px 0 0 18px; }
+  .warn-box.soft { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+  .issue-link {
+    display: block; width: 100%;
+    background: none; border: none; padding: 0; font: inherit; color: inherit; text-align: left;
+    cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px;
+  }
+  .issue-link:hover { text-decoration-style: solid; }
+
+  .preview-wrap { display: flex; flex-direction: column; align-items: center; margin-top: 16px; }
+  .preview-wrap canvas { background: #fff; border: 1px solid #ccc; border-radius: 3px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); max-width: 100%; }
+  .preview-wrap canvas.bad { outline: 2px solid #dc2626; outline-offset: 2px; }
+  .label-size-note { font-size: 12px; color: #888; margin-top: 8px; }
+  .bc-check { margin-top: 8px; font-size: 13px; font-weight: 600; text-align: center; max-width: 420px; line-height: 1.4; }
+  .bc-check.ok { color: #16a34a; }
+  .bc-check.bad { color: #dc2626; }
+  .bc-check.soft { color: #92400e; }
+  .preview-nav { display: flex; align-items: center; gap: 12px; margin-top: 10px; font-size: 13px; color: #555; }
+  .preview-nav button { padding: 6px 12px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .preview-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .fix-note { font-size: 13px; color: #dc2626; text-align: center; margin-top: 8px; }
+  .fix-note:empty { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1><span aria-hidden="true">&#127991;&#65039;</span> Display Label Generator</h1>
+  <p class="subtitle">Price stickers for display shoes: name, price and a barcode that <strong>Stock check</strong> can scan.
+    Fill in the sheet, check the stickers, download the PDF, then print it with the NIIMBOT app.</p>
+
+  <!-- Step 1: Sticker list -->
+  <div class="step" id="stepData">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-title">Your sticker list</div>
+    </div>
+    <p class="help-text" style="margin:0 0 10px">Paste the link of the Google Sheet, then press <strong>Load</strong>. This computer remembers the link.</p>
+    <div class="sheet-input-row">
+      <input type="text" id="sheetUrl" aria-label="Google Sheet link" placeholder="Paste the Google Sheet link...">
+      <button class="btn-sm" id="fetchBtn" onclick="fetchSheet()">Load</button>
+    </div>
+    <div class="file-row">
+      <span>Or open a CSV file:</span>
+      <input type="file" id="csvFile" accept=".csv,text/csv" onchange="loadCsvFile(this.files[0])">
+    </div>
+    <div class="sheet-status" id="sheetStatus" role="status"></div>
+    <p class="help-text" style="margin-top:0">Changed something in the sheet? Wait 1&ndash;2 minutes, then press <strong>Load</strong> again.</p>
+    <details class="instructions">
+      <summary>How the sheet must look</summary>
+      <p>Row 1 must have these columns. One row for each sticker design.</p>
+      <table>
+        <tr><th>Column</th><th>What to type</th><th>Example</th></tr>
+        <tr><td><strong>Name</strong></td><td>Shoe name (needed)</td><td>Lara Slingback Heels</td></tr>
+        <tr><td><strong>Colour</strong></td><td>Colour</td><td>Hana White</td></tr>
+        <tr><td><strong>Size</strong></td><td>Size</td><td>36</td></tr>
+        <tr><td><strong>Price</strong></td><td>Price in RM, numbers only (needed)</td><td>208.00</td></tr>
+        <tr><td><strong>Barcode</strong></td><td>The shoe's Barcode / SKU, exactly as in Shopify (needed)</td><td>1800044001-36</td></tr>
+        <tr><td><strong>Copies</strong></td><td>How many stickers (empty = 1)</td><td>2</td></tr>
+      </table>
+      <p><strong>To share the sheet with this page:</strong> in Google Sheets go to <strong>File &rarr; Share &rarr; Publish to web</strong>,
+        pick the sheet tab, choose <strong>Comma-separated values (.csv)</strong>, press <strong>Publish</strong>, and copy the link.</p>
+      <p><strong>Note:</strong> anyone with a published link can open the sheet. Only put shoe details and prices in it &mdash; nothing private.</p>
+    </details>
+    <div id="rowsPreview"></div>
+  </div>
+
+  <!-- Step 2: Check -->
+  <div class="step" id="stepCheck">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-title">Check your stickers</div>
+    </div>
+    <div class="count-line" id="countLine">No stickers yet. Load your list in step 1.</div>
+    <div id="warnings"></div>
+
+    <div class="preview-wrap">
+      <canvas id="previewCanvas"></canvas>
+      <div class="label-size-note">50 &times; 30 mm &middot; NIIMBOT B1 &middot; shown 2&times; bigger</div>
+      <div class="bc-check" id="bcCheck"></div>
+      <div class="preview-nav">
+        <button type="button" id="prevBtn" onclick="previewIdx--; updatePreview();">&#9664; Prev</button>
+        <span id="previewPos">-</span>
+        <button type="button" id="nextBtn" onclick="previewIdx++; updatePreview();">Next &#9654;</button>
+      </div>
+      <button type="button" class="btn-sm" id="singleBtn" style="margin-top:10px;" onclick="downloadSingle()">Download just this sticker (test print)</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Download -->
+  <div class="step" id="stepGenerate">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-title">Download the PDF and print</div>
+    </div>
+    <button class="btn" id="generateBtn" onclick="downloadAll()" disabled>Download PDF</button>
+    <p class="fix-note" id="fixNote"></p>
+    <div class="progress-bar-container" id="progressContainer">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="status" id="status"></div>
+    <details class="instructions">
+      <summary>Printing with the NIIMBOT app</summary>
+      <ol>
+        <li>Open the PDF in the <strong>NIIMBOT</strong> app. Choose the 50 &times; 30 mm label.</li>
+        <li>Print at <strong>100% size</strong>. Do not use "fit" or "scale" &mdash; it makes the barcode bars uneven.</li>
+        <li>Print <strong>one</strong> sticker first. Scan it with <strong>Stock check</strong> on the POS phone.</li>
+        <li>It shows the right shoe? Print the rest.</li>
+        <li>Bars look grey or broken? Make the print darker by one step and try again.</li>
+      </ol>
+    </details>
+  </div>
+</div>
+
+<script>
+var jsPDF = window.jspdf.jsPDF;
+
+// The team's Google Sheet. Leave empty until the sheet exists; then put its
+// published link here and publish the site again, so it loads for everyone.
+var USUAL_SHEET_URL = '';
+
+// ─── STATUS & UTILS ──────────────────────────────────────────
+
+function setStatus(msg, type) {
+  var el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status' + (type ? ' ' + type : '');
+}
+
+function setSheetStatus(msg, type) {
+  var el = document.getElementById('sheetStatus');
+  el.textContent = msg;
+  el.className = 'sheet-status' + (type ? ' ' + type : '');
+}
+
+function escHtml(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+
+// ─── GOOGLE SHEET / CSV FILE ─────────────────────────────────
+
+var SHEET_URL_KEY = 'displayLabel.sheetUrl';
+
+function getSavedSheetUrl() {
+  try { return localStorage.getItem(SHEET_URL_KEY) || ''; } catch (e) { return ''; }
+}
+
+function rememberSheetUrl(url) {
+  try { localStorage.setItem(SHEET_URL_KEY, url); } catch (e) {}
+}
+
+function getPublishedCsvUrl(url) {
+  url = String(url || '').trim();
+  if (url.indexOf('output=csv') !== -1) return url;
+  var gidMatch = url.match(/gid=(\d+)/);
+
+  // "Publish to web" link: /spreadsheets/d/e/2PACX-.../pubhtml (or /pub)
+  var pub = url.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9_-]+)/);
+  if (pub) {
+    return 'https://docs.google.com/spreadsheets/d/e/' + pub[1] + '/pub?' +
+      (gidMatch ? 'gid=' + gidMatch[1] + '&single=true&' : '') + 'output=csv';
+  }
+
+  // Normal sheet link: /spreadsheets/d/<id>/edit
+  var match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (match) {
+    var gid = gidMatch ? gidMatch[1] : '0';
+    return 'https://docs.google.com/spreadsheets/d/' + match[1] + '/pub?gid=' + gid + '&single=true&output=csv';
+  }
+  return null;
+}
+
+var loadId = 0;   // ignore answers from an older Load that finish late
+
+function startLoad() {
+  setStatus('');
+  rows = [];
+  document.getElementById('rowsPreview').innerHTML = '';
+  refreshUI();
+  return ++loadId;
+}
+
+function fetchSheet() {
+  var url = document.getElementById('sheetUrl').value.trim();
+  if (!url) { setSheetStatus('Paste the Google Sheet link in the box, then press Load.', 'error'); return; }
+  var csvUrl = getPublishedCsvUrl(url);
+  if (!csvUrl) { setSheetStatus('That link is not a Google Sheet link. See "How the sheet must look".', 'error'); return; }
+
+  var id = startLoad();
+  var btn = document.getElementById('fetchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+  setSheetStatus('Loading your sticker list...', '');
+  // Stop the browser re-using an old copy. (Google's own publish delay still applies.)
+  csvUrl += (csvUrl.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now();
+
+  Papa.parse(csvUrl, {
+    download: true,
+    header: true,
+    skipEmptyLines: false,   // keep blank rows so row numbers match the sheet
+    complete: function(results) {
+      if (id !== loadId) return;
+      btn.disabled = false;
+      btn.textContent = 'Load';
+      loadData(results, 'the Google Sheet');
+      if (rows.length) rememberSheetUrl(url);
+    },
+    error: function() {
+      if (id !== loadId) return;
+      btn.disabled = false;
+      btn.textContent = 'Load';
+      if (location.protocol === 'file:') {
+        setSheetStatus('This page was opened as a file, so Google will not send the sheet. Open the website link instead, or use "Open a CSV file".', 'error');
+        return;
+      }
+      setSheetStatus('Could not open the Google Sheet. Check your internet and press Load. Still not working? Check the sheet is published (File → Share → Publish to web).', 'error');
+    }
+  });
+}
+
+function loadCsvFile(file) {
+  if (!file) return;
+  var id = startLoad();
+  setSheetStatus('Reading ' + file.name + '...', '');
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: false,
+    complete: function(results) { if (id === loadId) loadData(results, file.name); },
+    error: function() { if (id === loadId) setSheetStatus('Could not read ' + file.name + '. Is it a CSV file?', 'error'); }
+  });
+}
+
+function showRowsPreview(headers, data) {
+  var html = '<div class="rows-preview"><table><tr>';
+  headers.forEach(function(h) { html += '<th>' + escHtml(h) + '</th>'; });
+  html += '</tr>';
+  data.slice(0, 6).forEach(function(row) {
+    html += '<tr>';
+    headers.forEach(function(h) { html += '<td>' + escHtml(row[h]) + '</td>'; });
+    html += '</tr>';
+  });
+  if (data.length > 6) {
+    html += '<tr><td colspan="' + headers.length + '" style="color:#888;text-align:center">... and ' + (data.length - 6) + ' more rows</td></tr>';
+  }
+  html += '</table></div>';
+  document.getElementById('rowsPreview').innerHTML = html;
+}
+
+// ─── STICKER DATA ────────────────────────────────────────────
+// The sheet is typed by hand, so every row is checked before it can print.
+//   errors   (red)    the sticker will NOT print until the row is fixed
+//   warnings (yellow) the sticker prints, but have a look
+
+var rows = [];        // one entry per sheet row with data
+var previewIdx = 0;
+
+// Accepted header names, compared after normHeader(): "Price (RM)" -> "price_rm"
+var FIELDS = [
+  { key: 'name',    label: 'Name',    required: true,  aliases: ['name', 'shoe', 'shoe_name', 'product', 'product_name', 'title'] },
+  { key: 'colour',  label: 'Colour',  required: false, aliases: ['colour', 'color'] },
+  { key: 'size',    label: 'Size',    required: false, aliases: ['size', 'shoe_size'] },
+  { key: 'price',   label: 'Price',   required: true,  aliases: ['price', 'price_rm', 'rm', 'selling_price'] },
+  { key: 'barcode', label: 'Barcode', required: true,  aliases: ['barcode', 'sku', 'barcode_sku', 'sku_barcode', 'code'] },
+  { key: 'copies',  label: 'Copies',  required: false, aliases: ['copies', 'qty', 'quantity', 'stickers', 'labels'] }
+];
+var MAX_COPIES = 50;
+
+function normHeader(h) {
+  return String(h || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+// "Lara Slingback Heels, size 36", used in the warning lists.
+function rowName(r) {
+  return (r.name || '(no name)') + (r.size ? ', size ' + r.size : '');
+}
+
+// "208", "RM208", "rm 1,208.5" -> 208 / 1208.5. Returns NaN if it is not a price.
+function parsePrice(text) {
+  var t = String(text || '').replace(/^\s*rm\s*/i, '').replace(/,/g, '').trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return NaN;
+  return parseFloat(t);
+}
+
+// 1208.5 -> "RM 1,208.50"
+function formatPrice(n) {
+  var parts = n.toFixed(2).split('.');
+  return 'RM ' + parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + parts[1];
+}
+
+function checkRow(r) {
+  r.errors = [];
+  r.warnings = [];
+
+  if (!r.name) r.errors.push('Name is empty');
+
+  r.priceValue = parsePrice(r.price);
+  if (!r.price) r.errors.push('Price is empty');
+  else if (isNaN(r.priceValue) || r.priceValue <= 0) r.errors.push('Price "' + r.price + '" is not a price (type numbers only, e.g. 208.00)');
+  r.priceText = isNaN(r.priceValue) ? '' : formatPrice(r.priceValue);
+
+  // Barcode: the same rule Stock check uses (letters, numbers and "-", 3 to 40 long).
+  var raw = r.barcode;
+  r.code = raw.trim();
+  if (!r.code) r.errors.push('Barcode is empty');
+  else if (/\s/.test(r.code)) r.errors.push('Barcode "' + r.code + '" has a space in it');
+  else if (!/^[A-Za-z0-9-]+$/.test(r.code)) r.errors.push('Barcode "' + r.code + '" has a character that is not a letter, number or "-"');
+  else if (r.code.length < 3 || r.code.length > 40) r.errors.push('Barcode "' + r.code + '" must be 3 to 40 characters long');
+  else {
+    var m = r.code.match(/^(.+)-(\d{1,3})$/);
+    if (m && r.size && /^\d{1,3}$/.test(r.size) && m[2] !== r.size) {
+      r.errors.push('Barcode ends in size ' + m[2] + ' but the Size column says ' + r.size + '. Which one is right?');
+    }
+    if (!/^\d{10}(-\d{1,3})?$/.test(r.code)) {
+      r.warnings.push('Barcode "' + r.code + '" does not look like our usual code (10 numbers, then "-" and the size). Check it in Shopify');
+    }
+    if (/[OoIl]/.test(r.code) && /\d/.test(r.code)) {
+      r.warnings.push('Barcode has the letter O, I or l. Should it be the number 0 or 1?');
+    }
+  }
+
+  r.copiesN = 1;
+  if (r.copies) {
+    if (!/^\d+$/.test(r.copies) || +r.copies < 1 || +r.copies > MAX_COPIES) {
+      r.errors.push('Copies "' + r.copies + '" must be a whole number from 1 to ' + MAX_COPIES);
+    } else {
+      r.copiesN = +r.copies;
+    }
+  }
+
+  // Only now: does the barcode fit the sticker, and does it read back correctly?
+  if (r.code && !r.errors.some(function(e) { return e.indexOf('Barcode') === 0; })) {
+    r.bc = barcodeFor(r.code);
+    if (!r.bc.ok) r.errors.push(r.bc.reason);
+    else if (r.bc.check === 'fail') r.errors.push('The barcode did not read back correctly in the check. Do not print it; tell IT');
+  }
+}
+
+function loadData(results, source) {
+  rows = [];
+  document.getElementById('rowsPreview').innerHTML = '';
+
+  if (results.errors.length && !results.data.length) {
+    setSheetStatus('Could not read the list: ' + results.errors[0].message, 'error');
+    refreshUI();
+    return;
+  }
+
+  var headers = results.meta.fields || [];
+  var colFor = {};
+  FIELDS.forEach(function(f) {
+    for (var i = 0; i < headers.length; i++) {
+      if (f.aliases.indexOf(normHeader(headers[i])) !== -1) { colFor[f.key] = headers[i]; break; }
+    }
+  });
+  var missing = FIELDS.filter(function(f) { return f.required && !colFor[f.key]; });
+  if (missing.length) {
+    setSheetStatus('Could not find the ' + missing.map(function(f) { return f.label; }).join(' and ') +
+      (missing.length > 1 ? ' columns' : ' column') +
+      '. Row 1 must be: Name, Colour, Size, Price, Barcode, Copies. Fix it, then load again.', 'error');
+    refreshUI();
+    return;
+  }
+
+  results.data.forEach(function(raw, i) {
+    var r = { sheetRow: i + 2 };   // row 1 is the header
+    FIELDS.forEach(function(f) {
+      r[f.key] = colFor[f.key] ? String(raw[colFor[f.key]] == null ? '' : raw[colFor[f.key]]).trim() : '';
+    });
+    if (!FIELDS.some(function(f) { return r[f.key]; })) return;   // blank line
+    checkRow(r);
+    rows.push(r);
+  });
+
+  // The same barcode on two rows with a different name or price: one of them is a typo.
+  var byCode = {};
+  rows.forEach(function(r) { if (r.code) (byCode[r.code.toUpperCase()] = byCode[r.code.toUpperCase()] || []).push(r); });
+  Object.keys(byCode).forEach(function(k) {
+    var list = byCode[k];
+    if (list.length < 2) return;
+    var differ = list.some(function(r) { return r.name !== list[0].name || r.priceText !== list[0].priceText; });
+    list.forEach(function(r) {
+      var others = list.filter(function(o) { return o !== r; }).map(function(o) { return o.sheetRow; }).join(', ');
+      if (differ) r.errors.push('Same barcode as row ' + others + ' but a different name or price. Which one is right?');
+      else r.warnings.push('Same sticker is also on row ' + others + '. Use Copies instead?');
+    });
+  });
+
+  showRowsPreview(headers, results.data.filter(function(row) {
+    return headers.some(function(h) { return String(row[h] || '').trim(); });
+  }));
+
+  if (!rows.length) {
+    setSheetStatus('The list is empty. Add one row for each sticker, then load again.', 'error');
+  } else {
+    setSheetStatus('✓ ' + plural(rows.length, 'row', 'rows') + ' loaded from ' + source + '.', 'success');
+  }
+  refreshUI();
+}
+
+function readyRows() { return rows.filter(function(r) { return !r.errors.length; }); }
+function stickerCount(list) { return list.reduce(function(n, r) { return n + r.copiesN; }, 0); }
+
+// ─── BARCODE ─────────────────────────────────────────────────
+// Code 128, drawn so it scans every time on the NIIMBOT B1:
+//  - The B1 prints 8 dots per mm. Every bar is a WHOLE number of dots wide
+//    (3 dots = 0.375 mm if the code fits, else 2 dots = 0.25 mm), and starts on
+//    a dot, so the printer never has to round a bar thinner or thicker.
+//  - A blank quiet zone of 10 bar-units at both ends, inside the printable area.
+//  - Bars are drawn as exact rectangles in the PDF (no image, no blur).
+//  - Every barcode is read back with a barcode reader before it can print.
+
+var DOT = 0.125;              // mm per printer dot (203 dpi = 8 dots/mm)
+var X_DOTS = [3, 2];          // narrow bar width to try, biggest first
+var QUIET = 10;               // quiet zone at each end, in narrow-bar units
+var EDGE = 1.5;               // mm at each side the B1 does not print reliably
+var BAR_TOP = 11.5, BAR_BOTTOM = 27.0;   // mm; 15.5 mm tall bars, ~3 mm left at the bottom for feed drift
+
+var barcodeCache = {};
+
+// Code 128 pattern from JsBarcode: [{ x, w }] in narrow-bar units, plus the total length.
+function code128Bars(text) {
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  JsBarcode(svg, text, { format: 'CODE128', width: 1, height: 1, margin: 0, displayValue: false });
+  var bars = [];
+  svg.querySelectorAll('rect').forEach(function(rect) {
+    if (rect.getAttribute('style') && /fill:\s*#?fff/i.test(rect.getAttribute('style'))) return;   // background
+    var w = parseFloat(rect.getAttribute('width'));
+    var x = parseFloat(rect.getAttribute('x')) || 0;
+    // JsBarcode wraps the bars in a <g> that may be moved; add that offset.
+    var g = rect.parentNode, t = g && g.getAttribute && g.getAttribute('transform');
+    var off = t && t.match(/translate\(\s*([\d.]+)/);
+    bars.push({ x: x + (off ? parseFloat(off[1]) : 0), w: w });
+  });
+  var modules = parseFloat(svg.getAttribute('width'));
+  // Background rect has the full width: drop anything as wide as the whole code.
+  bars = bars.filter(function(b) { return b.w < modules; });
+  return { bars: bars, modules: modules };
+}
+
+// Everything needed to draw the barcode, or { ok: false, reason }.
+function barcodeFor(text) {
+  if (barcodeCache[text]) return barcodeCache[text];
+  var res;
+  try {
+    var p = code128Bars(text);
+    var avail = 50 - 2 * EDGE;
+    var xDots = null;
+    for (var i = 0; i < X_DOTS.length; i++) {
+      if ((p.modules + 2 * QUIET) * X_DOTS[i] * DOT <= avail) { xDots = X_DOTS[i]; break; }
+    }
+    if (!xDots) {
+      res = { ok: false, reason: 'Barcode "' + text + '" is too long for a 50 mm sticker. Check it is the right code' };
+    } else {
+      var X = xDots * DOT;
+      var codeW = p.modules * X;
+      // Centre the bars, snapped to a whole printer dot.
+      var x0 = Math.round(((50 - codeW) / 2) / DOT) * DOT;
+      res = { ok: true, bars: p.bars, modules: p.modules, xDots: xDots, X: X, x0: x0, codeW: codeW };
+      res.check = verifyBarcode(text, res);
+    }
+  } catch (e) {
+    res = { ok: false, reason: 'Barcode "' + text + '" could not be made (' + e.message + ')' };
+  }
+  barcodeCache[text] = res;
+  return res;
+}
+
+// Draw the bars exactly as the printer will (1 px = 1 printer dot, with the quiet
+// zones), then read them with a barcode reader. 'ok' | 'fail' | 'unchecked'.
+function verifyBarcode(text, bc) {
+  if (!window.ZXing) return 'unchecked';
+  try {
+    var q = QUIET * bc.xDots;
+    var w = bc.modules * bc.xDots + 2 * q, h = 40;
+    var lum = new Uint8ClampedArray(w * h);
+    lum.fill(255);
+    bc.bars.forEach(function(b) {
+      var from = q + Math.round(b.x * bc.xDots), to = from + Math.round(b.w * bc.xDots);
+      for (var y = 0; y < h; y++) for (var x = from; x < to; x++) lum[y * w + x] = 0;
+    });
+    var src = new ZXing.RGBLuminanceSource(lum, w, h);
+    var bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
+    var hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.CODE_128]);
+    var reader = new ZXing.MultiFormatReader();
+    reader.setHints(hints);
+    return reader.decode(bitmap).getText() === text ? 'ok' : 'fail';
+  } catch (e) {
+    return 'fail';
+  }
+}
+
+// ─── STICKER LAYOUT ──────────────────────────────────────────
+// ONE layout used by both the preview and the PDF, so they match.
+// The standard display sticker, 50 x 30 mm:
+//   Lara Slingback Heels - 36          <- name + size, bold, one line (the size is never cut)
+//   Hana White               RM 208.00 <- colour, price bold on the right
+//   ▌║▌║║▌║▌▌║║▌║▌║▌║║▌▌║▌║║▌║▌║▌║     <- Code 128 barcode (most of the sticker)
+
+var LABEL_W = 50, LABEL_H = 30;
+var PT_MM = 0.3528;          // 1pt in mm
+var PAD = 2.5;               // mm; keep text off the edge, thermal printers can clip
+var NAME_Y = 4.4, INFO_Y = 8.6;   // centre of each text line, mm from the top
+var NAME_PT = 11, NAME_MIN_PT = 8;
+var INFO_PT = 9, INFO_MIN_PT = 7.5;
+var PRICE_PT = 12;
+var PRICE_GAP = 2;           // mm between the colour and the price
+var SIZE_PREFIX = ' - ';     // "Lara Slingback Heels - 36", same as the photoshoot labels
+
+var pdfMeasureDoc = null;
+function pdfMeasure() {
+  if (!pdfMeasureDoc) pdfMeasureDoc = new jsPDF({ unit: 'mm', format: [LABEL_W, LABEL_H], orientation: 'landscape' });
+  var doc = pdfMeasureDoc;
+  return function(t, pt, bold) {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(pt);
+    return doc.getTextWidth(t);
+  };
+}
+
+// Shrink text until it fits; if it still doesn't fit, keep whole words only.
+function fitText(text, maxW, maxPt, minPt, bold, measure) {
+  for (var pt = maxPt; pt >= minPt; pt -= 0.5) {
+    if (measure(text, pt, bold) <= maxW) return { text: text, pt: pt, dropped: '' };
+  }
+  var words = text.split(/\s+/), n = 0;
+  while (n < words.length && measure(words.slice(0, n + 1).join(' '), minPt, bold) <= maxW) n++;
+  if (!n) {
+    var c = 1;
+    while (c < text.length && measure(text.slice(0, c + 1), minPt, bold) <= maxW) c++;
+    return { text: text.slice(0, c), pt: minPt, dropped: text.slice(c) };
+  }
+  return { text: words.slice(0, n).join(' '), pt: minPt, dropped: words.slice(n).join(' ') };
+}
+
+// Returns { items: [{ text, x, y, pt, bold, align }], bc, cuts: [{ field, dropped }] }.
+function layout(r, measure) {
+  var maxW = LABEL_W - 2 * PAD;
+  var items = [], cuts = [];
+
+  // Name + size: "Lara Slingback Heels - 36". Only the name may be shortened, never the size.
+  var tail = r.size ? SIZE_PREFIX + r.size : '';
+  var fullName = r.name || '';
+  var name = null;
+  for (var pt = NAME_PT; pt >= NAME_MIN_PT; pt -= 0.5) {          // 1. whole name, a bit smaller
+    if (measure(fullName + tail, pt, true) <= maxW) { name = { text: fullName, pt: pt, dropped: '' }; break; }
+  }
+  if (!name) {                                                    // 2. smallest size, cut the name at a whole word
+    name = fitText(fullName, maxW - measure(tail, NAME_MIN_PT, true), NAME_MIN_PT, NAME_MIN_PT, true, measure);
+  }
+  items.push({ text: name.text + tail, x: PAD, y: NAME_Y, pt: name.pt, bold: true, align: 'left' });
+  if (name.dropped) cuts.push({ field: 'Name', dropped: name.dropped });
+
+  var priceW = 0;
+  if (r.priceText) {
+    items.push({ text: r.priceText, x: LABEL_W - PAD, y: INFO_Y, pt: PRICE_PT, bold: true, align: 'right' });
+    priceW = measure(r.priceText, PRICE_PT, true) + PRICE_GAP;
+  }
+  if (r.colour) {
+    var f = fitText(r.colour, maxW - priceW, INFO_PT, INFO_MIN_PT, false, measure);
+    items.push({ text: f.text, x: PAD, y: INFO_Y, pt: f.pt, bold: false, align: 'left' });
+    if (f.dropped) cuts.push({ field: 'Colour', dropped: f.dropped });
+  }
+
+  return { items: items, bc: r.bc && r.bc.ok ? r.bc : null, cuts: cuts };
+}
+
+// Items store the visual centre of the capital letters; draw on the baseline.
+function baselineY(it) { return it.y + it.pt * PT_MM * 0.36; }
+
+// Bars as rectangles in mm: [{ x, w }] (top and bottom are BAR_TOP / BAR_BOTTOM).
+function barRects(bc) {
+  return bc.bars.map(function(b) { return { x: bc.x0 + b.x * bc.X, w: b.w * bc.X }; });
+}
+
+// ─── CHECK LIST & PREVIEW ────────────────────────────────────
+
+function refreshUI() {
+  previewIdx = 0;
+  updateBtn();
+  updatePreview();
+}
+
+function updateBtn() {
+  var ready = readyRows(), n = stickerCount(ready);
+  var btn = document.getElementById('generateBtn');
+  btn.disabled = n === 0;
+  btn.textContent = n ? 'Download PDF (' + plural(n, 'sticker', 'stickers') + ')' : 'Download PDF';
+  var bad = rows.length - ready.length;
+  document.getElementById('fixNote').textContent = bad
+    ? plural(bad, 'row is', 'rows are') + ' left out of the PDF until fixed (see step 2).'
+    : '';
+}
+
+function renderCountAndWarnings() {
+  var countEl = document.getElementById('countLine');
+  var warnEl = document.getElementById('warnings');
+  warnEl.innerHTML = '';
+  if (!rows.length) { countEl.textContent = 'No stickers yet. Load your list in step 1.'; return; }
+
+  var ready = readyRows();
+  countEl.innerHTML = '<strong>' + plural(stickerCount(ready), 'sticker', 'stickers') + '</strong> ready to print, from ' +
+    plural(ready.length, 'row', 'rows') + '.';
+
+  function box(list, soft, head, pick) {
+    if (!list.length) return;
+    var div = document.createElement('div');
+    div.className = 'warn-box' + (soft ? ' soft' : '');
+    var h = document.createElement('strong');
+    h.textContent = head;
+    div.appendChild(h);
+    var ul = document.createElement('ul');
+    list.slice(0, 12).forEach(function(r) {
+      var li = document.createElement('li');
+      var a = document.createElement('button');
+      a.type = 'button';
+      a.className = 'issue-link';
+      a.textContent = 'Row ' + r.sheetRow + ' · ' + rowName(r) + ': ' + pick(r).join('; ');
+      a.title = 'Show this sticker';
+      a.onclick = function() {
+        previewIdx = rows.indexOf(r);
+        updatePreview();
+        document.getElementById('previewCanvas').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      };
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+    if (list.length > 12) {
+      var more = document.createElement('li');
+      more.textContent = '...and ' + (list.length - 12) + ' more (use Next to find them)';
+      ul.appendChild(more);
+    }
+    div.appendChild(ul);
+    warnEl.appendChild(div);
+  }
+
+  var measure = pdfMeasure();
+  var bad = rows.filter(function(r) { return r.errors.length; });
+  box(bad, false, plural(bad.length, 'row needs', 'rows need') + ' fixing in the sheet. They will NOT print until fixed:',
+    function(r) { return r.errors; });
+  var soft = rows.filter(function(r) {
+    return !r.errors.length && (r.warnings.length || layout(r, measure).cuts.length);
+  });
+  box(soft, true, plural(soft.length, 'row', 'rows') + ' will print, but please check:', function(r) {
+    return r.warnings.concat(layout(r, measure).cuts.map(function(c) {
+      return c.field + ' is too long, "' + c.dropped + '" will not print';
+    }));
+  });
+}
+
+function updatePreview() {
+  renderCountAndWarnings();
+
+  var W = LABEL_W, H = LABEL_H;
+  var canvas = document.getElementById('previewCanvas');
+  var cssW = 400, sc = cssW / W;                    // px per mm (2x real size on most screens)
+  var dpr = window.devicePixelRatio || 1;
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = (H * sc) + 'px';
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(H * sc * dpr);
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr * sc, 0, 0, dpr * sc, 0, 0);  // draw in mm from here on
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  var n = rows.length;
+  if (previewIdx >= n) previewIdx = n - 1;
+  if (previewIdx < 0) previewIdx = 0;
+  document.getElementById('prevBtn').disabled = previewIdx <= 0;
+  document.getElementById('nextBtn').disabled = previewIdx >= n - 1;
+  document.getElementById('previewPos').textContent = n ? 'Row ' + rows[previewIdx].sheetRow + ' (' + (previewIdx + 1) + ' of ' + n + ')' : 'Sample sticker';
+
+  var r = n ? rows[previewIdx] : sampleRow();
+  var L = layout(r, pdfMeasure());
+
+  ctx.fillStyle = '#000';
+  if (L.bc) {
+    barRects(L.bc).forEach(function(b) { ctx.fillRect(b.x, BAR_TOP, b.w, BAR_BOTTOM - BAR_TOP); });
+  } else {
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 0.3;
+    ctx.strokeRect(PAD, BAR_TOP, W - 2 * PAD, BAR_BOTTOM - BAR_TOP);
+    ctx.fillStyle = '#dc2626';
+    ctx.font = (8 * PT_MM) + 'px Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No barcode: fix this row', W / 2, (BAR_TOP + BAR_BOTTOM) / 2 + 1);
+    ctx.fillStyle = '#000';
+  }
+  ctx.textBaseline = 'alphabetic';
+  L.items.forEach(function(it) {
+    ctx.font = (it.bold ? 'bold ' : '') + (it.pt * PT_MM) + 'px Helvetica, Arial, sans-serif';
+    ctx.textAlign = it.align;
+    ctx.fillText(it.text, it.x, baselineY(it));
+  });
+  ctx.textAlign = 'left';
+
+  var bad = n && r.errors.length;
+  canvas.classList.toggle('bad', !!bad);
+  var check = document.getElementById('bcCheck');
+  document.getElementById('singleBtn').disabled = !n || !!bad;
+  if (!n) {
+    check.className = 'bc-check';
+    check.textContent = '';
+  } else if (bad) {
+    check.className = 'bc-check bad';
+    check.textContent = '✗ This sticker will not print: ' + r.errors.join('; ') + '.';
+  } else if (r.bc.check === 'ok') {
+    check.className = 'bc-check ok';
+    check.textContent = '✓ Barcode checked: it reads ' + r.code + ' · bars ' + r.bc.X + ' mm (' + r.bc.xDots + ' printer dots)' +
+      (r.copiesN > 1 ? ' · ' + r.copiesN + ' copies' : '');
+  } else {
+    check.className = 'bc-check soft';
+    check.textContent = 'Barcode made, but the double-check could not run (no internet?). Test-print one sticker first.';
+  }
+}
+
+function sampleRow() {
+  var r = { sheetRow: 0, name: 'Lara Slingback Heels', colour: 'Hana White', size: '36', price: '208.00', barcode: '1800044001-36', copies: '' };
+  checkRow(r);
+  return r;
+}
+
+// ─── PDF ─────────────────────────────────────────────────────
+
+// One 50 x 30 mm page per sticker (Copies repeats the page). Only rows with no errors.
+async function buildPdf(list, onProgress) {
+  var W = LABEL_W, H = LABEL_H;
+  var doc = new jsPDF({ unit: 'mm', format: [W, H], orientation: 'landscape' });
+  var measure = function(t, pt, bold) {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(pt);
+    return doc.getTextWidth(t);
+  };
+  var total = stickerCount(list), done = 0;
+  for (var i = 0; i < list.length; i++) {
+    var L = layout(list[i], measure);
+    for (var c = 0; c < list[i].copiesN; c++) {
+      if (done > 0) doc.addPage([W, H], 'landscape');
+      doc.setFillColor(0, 0, 0);
+      barRects(L.bc).forEach(function(b) { doc.rect(b.x, BAR_TOP, b.w, BAR_BOTTOM - BAR_TOP, 'F'); });
+      doc.setTextColor(0, 0, 0);
+      L.items.forEach(function(it) {
+        doc.setFont('helvetica', it.bold ? 'bold' : 'normal');
+        doc.setFontSize(it.pt);
+        doc.text(it.text, it.x, baselineY(it), { align: it.align });
+      });
+      done++;
+      if (onProgress) onProgress(done, total);
+      if (done % 20 === 0) await new Promise(function(res) { setTimeout(res, 0); });
+    }
+  }
+  return doc;
+}
+
+function today() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+async function downloadAll() {
+  var btn = document.getElementById('generateBtn');
+  var progressContainer = document.getElementById('progressContainer');
+  var progressBar = document.getElementById('progressBar');
+  var list = readyRows();
+  if (!list.length) { setStatus('Nothing to print yet. Load your list (step 1) and fix the red rows (step 2).', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Making PDF...';
+  progressContainer.style.display = 'block';
+  progressBar.style.width = '0%';
+  setStatus('');
+  try {
+    var doc = await buildPdf(list, function(done, total) { progressBar.style.width = (done / total * 100) + '%'; });
+    doc.save('display-labels-' + today() + '.pdf');
+    var left = rows.length - list.length;
+    setStatus('✓ PDF downloaded: ' + plural(stickerCount(list), 'sticker', 'stickers') + '. It is in your Downloads.' +
+      (left ? ' ' + plural(left, 'row was', 'rows were') + ' left out, see step 2.' : ''), 'success');
+  } catch (e) {
+    console.error(e);
+    setStatus('Error: ' + e.message, 'error');
+  } finally {
+    updateBtn();
+    setTimeout(function() { progressContainer.style.display = 'none'; }, 2000);
+  }
+}
+
+// Test print: one copy of the sticker shown in the preview.
+async function downloadSingle() {
+  var r = rows[previewIdx];
+  if (!r || r.errors.length) return;
+  try {
+    var one = Object.assign({}, r, { copiesN: 1 });
+    var doc = await buildPdf([one]);
+    doc.save('display-label-' + r.code + '.pdf');
+    setStatus('✓ Test sticker downloaded (' + r.code + '). Print it and scan it with Stock check.', 'success');
+  } catch (e) {
+    console.error(e);
+    setStatus('Error: ' + e.message, 'error');
+  }
+}
+
+// ─── START ──────────────────────────────────────────────────
+(function() {
+  var url = getSavedSheetUrl() || USUAL_SHEET_URL;
+  document.getElementById('sheetUrl').value = url;
+  refreshUI();
+  if (url) fetchSheet();
+})();
+</script>
+</body>
+</html>
