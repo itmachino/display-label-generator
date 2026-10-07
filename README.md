@@ -7,21 +7,24 @@ Website: **https://itmachino.github.io/display-label-generator/**
 Each sticker shows the **shoe**, the **price** and a **barcode** of the SKU.
 
 ```text
-┌──────────────────────────────────┐
-│ Hana OG Flats                    │
-│ in White             RM 148.00   │  ← name big and bold (max 2 lines), price small on the bottom line
-│──────────────────────────────────│
-│ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌  │
-│ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌  │
+┌───────────────────────┬──────────┐
+│ Hana OG Flats         │          │  ← name: its own column on the left, max 2 lines
+│ in White              │ RM 148.00│  ← price: its own column, at the bottom right
+├───────────────────────┴──────────┤  ← line
+│ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌   │  ← barcode
 └──────────────────────────────────┘
-   50 × 30 mm · NIIMBOT B1
+   50 × 30 mm · NIIMBOT B1   (the dividing lines between name and price are not printed)
 ```
 
-The name is never more than **2 lines**. A long name gets smaller by itself (down to 7pt) until it fits in 2 lines,
-split where it reads best (a new line before "in <colour>"). The price sits at the bottom right, on the
-name's last line; it is always smaller than the name, and gets smaller first if the name needs room.
-Every sticker has the same shape: the line and barcode never move.
-Only a very long name (about 60+ characters) gets its last words left off.
+Name, price and barcode each have **their own area** and never mix.
+
+- **Name:** starts at the top and fills line 1 first, never more than **2 lines**. When you change the
+  name size, the words move between the lines by themselves:
+  `Hana OG Flats / in White` → smaller → `Hana OG Flats in / White` → smaller → `Hana OG Flats in White`.
+  A name that does not fit in 2 lines gets smaller by itself (down to 7pt); only a very long name gets its
+  last words left off (yellow note).
+- **Price:** always a little smaller than the name, at the bottom right (or top right).
+- **Line and barcode:** in the same place on every sticker of a batch.
 
 ## Why the barcode matters most
 
@@ -70,9 +73,11 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 |---|---|
 | **Your sticker list** | Loads the team sheet by itself. Or paste another sheet link, or drop a CSV file. |
 | **Print stickers for** | Print everything, or only one shoe. |
-| **Template** | **Standard** (big name, small price, line, barcode), **Big price** (big bold price at the end of the name) or **Barcode only** (biggest bars). |
-| **Sticker settings** | Text sizes; show or hide shoe, price, size (from SKU), SKU text under the barcode, a line above the barcode; auto-fit long names. Remembered on this computer. **Reset to default** goes back to the standard sticker. |
+| **Template** | **Standard** (name, price and barcode) or **Barcode only** (biggest bars). |
+| **Sticker settings** | **Name:** size (7–14pt), bold, ALL CAPITALS, add size from SKU, shrink long names to fit. **Price:** size, bold, bottom right or top right. **Barcode:** line above barcode, SKU text under it. Remembered on this computer. **Reset to default** goes back to the standard sticker. |
+| **Try a name** | Type any name, price and SKU to see it on a sticker at once, without changing the sheet. Not added to the PDF. |
 | **Preview** | Every sticker, exactly as it prints. **Download just this sticker** for a test print. |
+| **Show all stickers** | Every sticker on one screen. Red = will not print, yellow = please check. Click one to see it big. |
 | **Barcode measurements** | Bar width, bar height, quiet zone, density and the read-back check, with ✓ or ✗. |
 | **Red / yellow lists** | Red rows will not print until fixed. Yellow rows print, but have a look. Click a row to see it. |
 

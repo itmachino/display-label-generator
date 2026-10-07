@@ -118,18 +118,38 @@
   .settings-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 4px; }
   .settings-title:first-child { margin-top: 0; }
 
-  .fld { display: grid; grid-template-columns: 170px 1fr 44px; gap: 10px; align-items: center; padding: 5px 0; }
+  .fld { display: grid; grid-template-columns: 170px minmax(0, 1fr) 44px; gap: 10px; align-items: center; padding: 5px 0; }
   .fld label, .fit-row label { font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; cursor: pointer; }
   .fld input[type="checkbox"], .fit-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #1a1a1a; flex-shrink: 0; }
   .fld input[type="range"] { width: 100%; accent-color: #1a1a1a; }
-  .fld select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: #fff; }
+  .fld select { width: 100%; min-width: 0; padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: #fff; }
   .slider-value { font-size: 13px; color: #666; text-align: right; }
   .fld.off input[type="range"], .fld.off select, .fld.off .slider-value { opacity: 0.35; }
   .fit-row { margin-top: 8px; padding: 10px 12px; background: #f9f9f9; border-radius: 8px; }
+  .opt-row { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 4px 0; }
+  .opt-row label { font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .opt-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #1a1a1a; }
+  .opt-row select { padding: 5px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: #fff; }
+  .opt-row.off { opacity: 0.4; }
+
+  .try-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .try-grid label { font-size: 13px; color: #555; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .try-grid input { width: 100%; padding: 9px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; min-width: 0; }
+  .try-grid input:focus { border-color: #1a1a1a; }
+
+  .all-bar { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #eee; }
+  .all-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-top: 14px; }
+  .all-grid[hidden] { display: none; }
+  .all-item { background: none; border: none; padding: 0; cursor: pointer; text-align: center; font: inherit; font-size: 12px; color: #666; }
+  .all-item canvas { display: block; width: 100%; background: #fff; border: 1px solid #ccc; border-radius: 3px; margin-bottom: 4px; }
+  .all-item:hover canvas { border-color: #1a1a1a; }
+  .all-item.bad canvas { outline: 2px solid #dc2626; outline-offset: 1px; }
+  .all-item.warn canvas { outline: 2px solid #f59e0b; outline-offset: 1px; }
+  .all-item.current canvas { box-shadow: 0 0 0 3px #1a1a1a; }
 
   .template-selector { display: flex; gap: 12px; margin-bottom: 4px; }
   .template-option {
-    flex: 1; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; background: #fff;
+    flex: 1; min-width: 0; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; background: #fff;
     cursor: pointer; text-align: center; transition: all 0.2s; font: inherit; color: inherit;
   }
   .template-option:hover { border-color: #999; }
@@ -177,8 +197,10 @@
   .barcode-specs .soft { color: #92400e; }
 
   @media (max-width: 820px) {
-    .check-layout { grid-template-columns: 1fr; }
-    .fld { grid-template-columns: 140px 1fr 40px; }
+    .check-layout { grid-template-columns: minmax(0, 1fr); }
+    .fld { grid-template-columns: 130px minmax(0, 1fr) 40px; }
+    .try-grid { grid-template-columns: minmax(0, 1fr); }
+    .row-pick select { min-width: 0; }
   }
 </style>
 </head>
@@ -253,11 +275,7 @@
         <div class="template-selector">
           <button type="button" class="template-option active" id="tplBoxed" onclick="selectTemplate('boxed')">
             <div class="tpl-name">Standard</div>
-            <div class="tpl-desc">Big name, small price, barcode</div>
-          </button>
-          <button type="button" class="template-option" id="tplPrice" onclick="selectTemplate('price')">
-            <div class="tpl-name">Big price</div>
-            <div class="tpl-desc">Shoe and a big bold price</div>
+            <div class="tpl-desc">Name, price and barcode</div>
           </button>
           <button type="button" class="template-option" id="tplBarcode" onclick="selectTemplate('barcode')">
             <div class="tpl-name">Barcode only</div>
@@ -268,24 +286,41 @@
         <details class="adv" id="stickerSettings">
           <summary>Sticker settings (optional) <span class="tag" id="customTag" hidden>custom settings in use</span></summary>
           <div class="adv-body">
-            <div class="settings-title">Text</div>
+            <div class="settings-title">Name</div>
             <div class="fld">
-              <label><input type="checkbox" id="showShoe" checked onchange="onSettingsChange()"> Shoe name</label>
-              <input type="range" id="shoePt" min="8" max="13" step="0.5" value="11" aria-label="Shoe name text size" oninput="onSettingsChange()">
+              <label><input type="checkbox" id="showShoe" checked onchange="onSettingsChange()"> Show name</label>
+              <input type="range" id="shoePt" min="7" max="14" step="0.5" value="11" aria-label="Name size" oninput="onSettingsChange()">
               <span class="slider-value" id="shoePtVal">11pt</span>
             </div>
-            <div class="fld">
-              <label><input type="checkbox" id="showPrice" checked onchange="onSettingsChange()"> Price</label>
-              <input type="range" id="pricePt" min="10" max="16" step="0.5" value="13" aria-label="Price text size" oninput="onSettingsChange()">
-              <span class="slider-value" id="pricePtVal">13pt</span>
+            <div class="opt-row" data-group="name">
+              <label><input type="checkbox" id="shoeBold" checked onchange="onSettingsChange()"> Bold</label>
+              <label><input type="checkbox" id="shoeCaps" onchange="onSettingsChange()"> ALL CAPITALS</label>
+              <label><input type="checkbox" id="showSize" onchange="onSettingsChange()"> Add size from SKU ("&hellip; - 36")</label>
+              <label><input type="checkbox" id="autoFit" checked onchange="onSettingsChange()"> Shrink long names to fit</label>
             </div>
+            <p class="help-text" style="margin-top:2px">Drag the size: the words move between the 2 lines by themselves. A name that does not fit in 2 lines gets a little smaller.</p>
+
+            <div class="settings-title">Price</div>
             <div class="fld">
-              <label><input type="checkbox" id="showSize" onchange="onSettingsChange()"> Size (from SKU)</label>
-              <span class="help-text" style="margin:0">"Lara Slingback Heels - 36"</span>
-              <span></span>
+              <label><input type="checkbox" id="showPrice" checked onchange="onSettingsChange()"> Show price</label>
+              <input type="range" id="pricePt" min="6.5" max="12" step="0.5" value="8" aria-label="Price size" oninput="onSettingsChange()">
+              <span class="slider-value" id="pricePtVal">8pt</span>
             </div>
+            <div class="opt-row" data-group="price">
+              <label><input type="checkbox" id="priceBold" onchange="onSettingsChange()"> Bold</label>
+              <label>Position
+                <select id="pricePos" onchange="onSettingsChange()">
+                  <option value="bottom">Bottom right</option>
+                  <option value="top">Top right</option>
+                </select>
+              </label>
+            </div>
+            <p class="help-text" style="margin-top:2px">The price has its own space on the right and is always a little smaller than the name.</p>
 
             <div class="settings-title">Barcode</div>
+            <div class="opt-row">
+              <label><input type="checkbox" id="showDivider" checked onchange="onSettingsChange()"> Line above barcode</label>
+            </div>
             <div class="fld">
               <label><input type="checkbox" id="showSkuText" onchange="onSettingsChange()"> SKU under barcode</label>
               <input type="range" id="skuPt" min="6" max="10" step="0.5" value="7" aria-label="SKU text size" oninput="onSettingsChange()">
@@ -299,18 +334,24 @@
               </select>
               <span></span>
             </div>
-            <div class="fld">
-              <label><input type="checkbox" id="showDivider" onchange="onSettingsChange()"> Line above barcode</label>
-              <span></span><span></span>
-            </div>
-
-            <div class="fit-row">
-              <label><input type="checkbox" id="autoFit" checked onchange="onSettingsChange()"> <strong>Auto-fit long text</strong></label>
-              <p class="help-text" style="margin-top:2px">Long shoe names get a little smaller (never below 3/4 size) or go onto two lines. Turn off to keep every sticker the exact same size.</p>
-            </div>
-            <p class="help-text">The barcode always gets the space that is left. Untick a line to leave it off. This computer remembers your settings.</p>
+            <p class="help-text">The barcode always gets the space that is left. This computer remembers your settings.</p>
             <div class="adv-actions">
               <button type="button" class="btn-sm ghost" onclick="resetSettings()">Reset to default</button>
+            </div>
+          </div>
+        </details>
+
+        <details class="adv" id="tryBox">
+          <summary>Try a name (test without the sheet) <span class="tag" id="tryTag" hidden>showing your test sticker</span></summary>
+          <div class="adv-body">
+            <div class="try-grid">
+              <label>Name<input type="text" id="tryShoe" placeholder="e.g. Hana OG Flats in White" oninput="onTryInput()"></label>
+              <label>Price<input type="text" id="tryPrice" placeholder="148.00" oninput="onTryInput()"></label>
+              <label>SKU<input type="text" id="trySku" placeholder="1800001001-35" oninput="onTryInput()"></label>
+            </div>
+            <p class="help-text">Type a name to see it on a sticker straight away. It is only a test: it is not added to the sheet or the PDF. An empty price or SKU uses an example.</p>
+            <div class="adv-actions">
+              <button type="button" class="btn-sm ghost small" onclick="clearTry()">Back to my list</button>
             </div>
           </div>
         </details>
@@ -328,6 +369,12 @@
         <div class="barcode-specs" id="barcodeSpecs"></div>
       </div>
     </div>
+
+    <div class="all-bar">
+      <button type="button" class="btn-sm ghost" id="allBtn" onclick="toggleAll()">Show all stickers</button>
+      <span class="help-text" id="allNote" style="margin:0"></span>
+    </div>
+    <div class="all-grid" id="allGrid" hidden></div>
   </div>
 
   <!-- Step 3: Download -->
@@ -967,94 +1014,98 @@ function layout(r, measure, st) {
   return L;
 }
 
-// "Standard" sticker: the name big and bold on the left (at most 2 lines), the price
-// small on the right, sitting on the name's bottom line (not floating). A line, then
-// the barcode. Every sticker has the same shape: the line and the barcode never move.
-//   Lara Slingback Heels
-//   in Hana White          RM 208.00
-//   ────────────────────────────────
-//   ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌║║
-var BOX_TOP = 1.2;            // mm; top of the name / price area
-var BOX_BOTTOM = 10.6;        // mm; the line under the name and price (same on every sticker)
-var BOX_BASELINE = 9.4;       // mm; where a 2-line name's bottom line and the price sit (room for g / y tails)
+// "Standard" sticker, in 3 separate areas that never mix:
+//   ┌────────────────────────┬───────────┐
+//   │ Hana OG Flats in       │           │  <- name: its own column on the left, max 2 lines
+//   │ White                  │ RM 148.00 │  <- price: its own column, at the bottom (or top)
+//   ├────────────────────────┴───────────┤  <- line ("Line above barcode")
+//   │ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌║║▌  │  <- barcode: all the space that is left
+// (No lines are drawn between name and price; they only show the areas.)
+// The name always starts at the top and fills line 1 first, so when the size
+// changes the words move between the lines by themselves:
+//   bigger  -> "Hana OG Flats" / "in White"
+//   smaller -> "Hana OG Flats in" / "White"
+//   smaller -> "Hana OG Flats in White"
+// The line and the barcode sit in the same place on every sticker of a batch
+// (worked out from the chosen name size, not from each name).
+var BOX_TOP_PAD = 1.5;        // mm above the capital letters of line 1
+var BOX_BOTTOM = 10.6;        // mm; the line under name and price is never higher than this
+var BOX_LINE_GAP = 0.7;       // mm between the lowest letter tails and the line
 var BOX_NAME_MIN_PT = 7;      // bold 7pt is the smallest the B1 still prints clearly
-var BOX_PRICE_MAX_PT = 8;     // always smaller than the name, not bold
 var BOX_PRICE_MIN_PT = 6.5;
-var BOX_GAP = 2;              // mm between the name and the price
+var BOX_GAP = 2;              // mm between the name column and the price column
 var RULE_W = 0.25;            // mm; lines are 2 printer dots thick
-var NAME_JOINERS = /^(in|with|and|of|or|for|the|a|to|&|n)$/i;   // never end line 1 on these
 
 function snapDot(v) { return Math.round(v / DOT) * DOT; }
 
-// The name on at most 2 lines, as big as fits (maxPt down to minPt). The size
-// (" - 36", when on) stays at the end and is never cut. Line breaks are chosen to
-// look good: both lines about the same length, a new line before "in <colour>",
-// and line 1 never ending on "in", "with", "and"... Returns { lines, pt, dropped }.
-// wTop is the width of line 1; wBottom is the width of the bottom line, which
-// shares its row with the price (a 1-line name is that bottom line).
-function fitTwoLines(name, tail, wTop, wBottom, maxPt, minPt, measure) {
+// Baselines (bottom of the letters) of name lines 1 and 2 at size pt, from the top.
+function nameBaselines(pt) {
+  var b1 = BOX_TOP_PAD + capMM(pt);
+  return [b1, b1 + pt * PT_MM * LINE_PITCH];
+}
+
+// The name in a column w mm wide, on at most 2 lines: line 1 takes as many words
+// as fit, the rest go to line 2. Starts at maxPt; if the name does not fit in 2
+// lines it gets smaller (down to minPt), then the end is cut at a whole word.
+// The size (" - 36", when on) stays at the end and is never cut.
+// Returns { lines: [1 or 2], pt, dropped }.
+function fitNameColumn(name, tail, w, maxPt, minPt, bold, measure) {
   var words = (name || '').trim().split(/\s+/);
+  var fits = function(t, pt) { return measure(t, pt, bold) <= w; };
   for (var pt = maxPt; pt >= minPt; pt -= 0.5) {
-    if (measure(words.join(' ') + tail, pt, true) <= wBottom) return { lines: [words.join(' ') + tail], pt: pt, dropped: '' };
-    var best = null;
-    for (var i = 1; i < words.length; i++) {
-      var l1 = words.slice(0, i).join(' '), l2 = words.slice(i).join(' ') + tail;
-      var w1 = measure(l1, pt, true), w2 = measure(l2, pt, true);
-      if (w1 > wTop || w2 > wBottom) continue;
-      var score = Math.abs(w1 - w2)
-        + (NAME_JOINERS.test(words[i - 1]) ? 20 : 0)           // "Heels in" / "Hana White"
-        - (/^in$/i.test(words[i]) ? 6 : 0);                    // "Heels" / "in Hana White"
-      if (!best || score < best.score) best = { score: score, lines: [l1, l2] };
+    if (fits(words.join(' ') + tail, pt)) return { lines: [words.join(' ') + tail], pt: pt, dropped: '' };
+    var k = 0;
+    while (k < words.length - 1 && fits(words.slice(0, k + 1).join(' '), pt)) k++;
+    if (k > 0 && fits(words.slice(k).join(' ') + tail, pt)) {
+      return { lines: [words.slice(0, k).join(' '), words.slice(k).join(' ') + tail], pt: pt, dropped: '' };
     }
-    if (best) return { lines: best.lines, pt: pt, dropped: '' };
   }
   // Still too long at the smallest size: fill line 1, cut the end of line 2 at a whole word.
-  var first = cutAtWord(words.join(' '), function(t) { return measure(t, minPt, true) <= wTop; });
-  var second = cutAtWord(first.dropped, function(t) { return measure(t + tail, minPt, true) <= wBottom; });
+  var first = cutAtWord(words.join(' '), function(t) { return fits(t, minPt); });
+  var second = cutAtWord(first.dropped, function(t) { return fits(t + tail, minPt); });
   return { lines: [first.kept, second.kept + tail], pt: minPt, dropped: second.dropped };
 }
 
-function layoutBoxed(r, measure, st, shoeMaxPt) {
+function layoutBoxed(r, measure, st) {
   var items = [], cuts = [], notes = [];
   var showShoe = st.showShoe && (r.shoe || (st.showSize && r.sizeFromSku));
   var showPrice = st.showPrice && r.priceText;
-  var mid = (BOX_TOP + BOX_BOTTOM) / 2;
+  var S = st.shoePt;                                  // the chosen name size
   var tail = st.showSize && r.sizeFromSku ? SIZE_PREFIX + r.sizeFromSku : '';
   var name = r.shoe || 'Size';
   if (!r.shoe) tail = ' ' + r.sizeFromSku;
-  var minPt = st.autoFit ? Math.min(shoeMaxPt, BOX_NAME_MIN_PT) : shoeMaxPt;
+  if (st.shoeCaps) name = name.toUpperCase();
+  var minPt = st.autoFit ? Math.min(S, BOX_NAME_MIN_PT) : S;
   var fullW = LABEL_W - 2 * PAD;
 
-  // The price only shares the name's BOTTOM line, so line 1 of the name gets the
-  // full width. If the name would be small or cut, the price gets smaller first.
-  var aPt, f = null;
-  for (aPt = BOX_PRICE_MAX_PT; ; aPt -= 0.5) {
-    var priceW = showPrice ? measure(r.priceText, aPt, false) + BOX_GAP : 0;
-    f = showShoe ? fitTwoLines(name, tail, fullW, fullW - priceW, shoeMaxPt, minPt, measure) : null;
-    if (!showPrice || !f || (!f.dropped && f.pt >= FIT_MIN_PT) || aPt <= BOX_PRICE_MIN_PT) break;
-  }
+  // Where the line and the price go, from the chosen size (same on every sticker).
+  var slots = nameBaselines(S);
+  var bandBottom = snapDot(Math.max(BOX_BOTTOM, slots[1] + descMM(S) + BOX_LINE_GAP));
 
-  // Baseline (bottom of the letters) of the name's bottom line; the price sits on it.
-  var baseline = BOX_BASELINE;
+  // Price column on the right: as wide as the price. The price is always smaller than the name.
+  var pPt = Math.max(BOX_PRICE_MIN_PT, Math.min(st.pricePt, S - 1));
+  var priceW = showPrice ? measure(r.priceText, pPt, st.priceBold) : 0;
+  var nameW = fullW - (showPrice ? priceW + BOX_GAP : 0);
+
   var nameLines = 0, namePt = 0;
-  if (f) {
+  if (showShoe) {
+    var f = fitNameColumn(name, tail, nameW, S, minPt, st.shoeBold, measure);
     nameLines = f.lines.length;
     namePt = f.pt;
-    var cap = capMM(f.pt), pitch = f.pt * PT_MM * LINE_PITCH;
-    // 2 lines: the bottom line sits on BOX_BASELINE. 1 line: centred above the line.
-    var ys = f.lines.length === 1 ? [mid] : [BOX_BASELINE - cap / 2 - pitch, BOX_BASELINE - cap / 2];
-    baseline = ys[ys.length - 1] + cap / 2;
-    f.lines.forEach(function(t, i) { items.push({ text: t, x: PAD, y: ys[i], pt: f.pt, bold: true, align: 'left' }); });
+    var b = nameBaselines(f.pt);   // the name always starts at the top
+    f.lines.forEach(function(t, i) {
+      items.push({ text: t, x: PAD, y: b[i] - capMM(f.pt) / 2, pt: f.pt, bold: st.shoeBold, align: 'left' });
+    });
     if (f.dropped) cuts.push({ field: 'SHOE', dropped: f.dropped });
     else if (f.pt < FIT_MIN_PT) notes.push('SHOE is long, printed small (' + f.pt + 'pt). Check it is easy to read, or shorten it');
+    if (pPt > f.pt - 1) pPt = Math.max(BOX_PRICE_MIN_PT, f.pt - 1);   // this name got smaller: so does the price
   }
   if (showPrice) {
-    if (namePt && aPt > namePt - 1) aPt = Math.max(BOX_PRICE_MIN_PT, namePt - 1);   // always smaller than the name
-    items.push({ text: r.priceText, x: LABEL_W - PAD, y: baseline - capMM(aPt) / 2, pt: aPt, bold: false, align: 'right' });
+    var priceBase = st.pricePos === 'top' ? slots[0] : slots[1];
+    items.push({ text: r.priceText, x: LABEL_W - PAD, y: priceBase - capMM(pPt) / 2, pt: pPt, bold: st.priceBold, align: 'right' });
   }
 
   // Line under the name and price ("Line above barcode" setting).
-  var bandBottom = BOX_BOTTOM;
   var rules = st.showDivider ? [{ x: PAD, y: bandBottom, w: LABEL_W - 2 * PAD, h: RULE_W }] : [];
   var barTop = bandBottom + (rules.length ? RULE_W : 0) + BAR_GAP;
   var barBottom = BAR_BOTTOM;
@@ -1068,7 +1119,7 @@ function layoutBoxed(r, measure, st, shoeMaxPt) {
 }
 
 function layoutWith(r, measure, st, shoeMaxPt) {
-  if (st.template === 'boxed') return layoutBoxed(r, measure, st, shoeMaxPt);
+  if (st.template === 'boxed') return layoutBoxed(r, measure, st);
   var maxW = LABEL_W - 2 * PAD;
   var items = [], cuts = [];
   var barcodeOnly = st.template === 'barcode';
@@ -1130,26 +1181,27 @@ function barRects(bc) {
 
 // ─── SETTINGS (remembered on this computer) ─────────────────
 
-var SETTINGS_KEY = 'displayLabel.settings.v2';   // v2: "Standard" (name | price) became the default
-// Standard sticker: big name, small price, a line, barcode. "Reset to default" goes back to these.
+var SETTINGS_KEY = 'displayLabel.settings.v3';   // v3: name | price columns, more options
+// Standard sticker: name (bold, 11pt) on the left, price (8pt) bottom right, a line,
+// then the barcode. "Reset to default" goes back to these.
 var DEFAULTS = {
   template: 'boxed',
-  showShoe: true, shoePt: 11,
-  showPrice: true, pricePt: 13,   // used by "Big price"; "Standard" sizes its price by itself
-  showSize: false,
-  showSkuText: false, skuPt: 7, skuFont: 'helvetica',
+  showShoe: true, shoePt: 11, shoeBold: true, shoeCaps: false, showSize: false, autoFit: true,
+  showPrice: true, pricePt: 8, priceBold: false, pricePos: 'bottom',
   showDivider: true,
-  autoFit: true
+  showSkuText: false, skuPt: 7, skuFont: 'helvetica'
 };
-var TEMPLATES = ['boxed', 'price', 'barcode'];
+var TEMPLATES = ['boxed', 'barcode'];
 var SLIDERS = [['shoePt', 'showShoe'], ['pricePt', 'showPrice'], ['skuPt', 'showSkuText']];
-var CHECKS = ['showShoe', 'showPrice', 'showSize', 'showSkuText', 'showDivider', 'autoFit'];
+var CHECKS = ['showShoe', 'shoeBold', 'shoeCaps', 'showSize', 'autoFit', 'showPrice', 'priceBold', 'showDivider', 'showSkuText'];
+var CHOICES = { pricePos: ['bottom', 'top'], skuFont: ['helvetica', 'courier'] };   // <select> boxes
 var currentTemplate = 'boxed';
 
 function getSettings() {
-  var st = { template: currentTemplate, skuFont: document.getElementById('skuFont').value };
+  var st = { template: currentTemplate };
   CHECKS.forEach(function(k) { st[k] = document.getElementById(k).checked; });
   SLIDERS.forEach(function(s) { st[s[0]] = parseFloat(document.getElementById(s[0]).value); });
+  Object.keys(CHOICES).forEach(function(k) { st[k] = document.getElementById(k).value; });
   return st;
 }
 
@@ -1158,7 +1210,9 @@ function applySettings(st) {
   var pick = function(k, type) { return typeof st[k] === type && (type !== 'number' || isFinite(st[k])) ? st[k] : DEFAULTS[k]; };
   CHECKS.forEach(function(k) { document.getElementById(k).checked = pick(k, 'boolean'); });
   SLIDERS.forEach(function(s) { document.getElementById(s[0]).value = pick(s[0], 'number'); });
-  document.getElementById('skuFont').value = st.skuFont === 'courier' ? 'courier' : 'helvetica';
+  Object.keys(CHOICES).forEach(function(k) {
+    document.getElementById(k).value = CHOICES[k].indexOf(st[k]) !== -1 ? st[k] : DEFAULTS[k];
+  });
   setTemplate(TEMPLATES.indexOf(st.template) !== -1 ? st.template : DEFAULTS.template);
   syncControls();
 }
@@ -1177,21 +1231,24 @@ function isDefaultSettings(st) {
   return Object.keys(DEFAULTS).every(function(k) { return st[k] === DEFAULTS[k]; });
 }
 
-// Slider readouts, grey out hidden lines and text settings on "Barcode only".
-// On "Standard" the price size is automatic (always smaller than the name).
+// Slider readouts; grey out the options of hidden lines, and the name and price
+// options on "Barcode only".
 function syncControls() {
   var barcodeOnly = currentTemplate === 'barcode';
+  var nameOn = document.getElementById('showShoe').checked && !barcodeOnly;
+  var priceOn = document.getElementById('showPrice').checked && !barcodeOnly;
   SLIDERS.forEach(function(s) {
     var slider = document.getElementById(s[0]);
-    var autoPrice = s[0] === 'pricePt' && currentTemplate === 'boxed';
-    var on = document.getElementById(s[1]).checked && !(barcodeOnly && s[1] !== 'showSkuText') && !autoPrice;
-    document.getElementById(s[0] + 'Val').textContent = autoPrice ? 'auto' : slider.value + 'pt';
+    var on = document.getElementById(s[1]).checked && !(barcodeOnly && s[1] !== 'showSkuText');
+    document.getElementById(s[0] + 'Val').textContent = slider.value + 'pt';
     slider.disabled = !on;
     slider.closest('.fld').classList.toggle('off', !on);
   });
-  ['showShoe', 'showPrice', 'showSize', 'showDivider'].forEach(function(k) {
-    document.getElementById(k).disabled = barcodeOnly;
-  });
+  ['showShoe', 'showPrice', 'showDivider'].forEach(function(k) { document.getElementById(k).disabled = barcodeOnly; });
+  ['shoeBold', 'shoeCaps', 'showSize', 'autoFit'].forEach(function(k) { document.getElementById(k).disabled = !nameOn; });
+  ['priceBold', 'pricePos'].forEach(function(k) { document.getElementById(k).disabled = !priceOn; });
+  document.querySelector('.opt-row[data-group="name"]').classList.toggle('off', !nameOn);
+  document.querySelector('.opt-row[data-group="price"]').classList.toggle('off', !priceOn);
   var skuOn = document.getElementById('showSkuText').checked;
   document.getElementById('skuFont').disabled = !skuOn;
   document.getElementById('skuFont').closest('.fld').classList.toggle('off', !skuOn);
@@ -1201,7 +1258,6 @@ function syncControls() {
 function setTemplate(tpl) {
   currentTemplate = tpl;
   document.getElementById('tplBoxed').classList.toggle('active', tpl === 'boxed');
-  document.getElementById('tplPrice').classList.toggle('active', tpl === 'price');
   document.getElementById('tplBarcode').classList.toggle('active', tpl === 'barcode');
 }
 
@@ -1214,7 +1270,7 @@ function onSettingsChange() { syncControls(); saveSettings(); updatePreview(); }
 
 function resetSettings() {
   if (isDefaultSettings(getSettings())) return;
-  if (!window.confirm('Reset the sticker back to the standard settings (big name, small price, barcode)?')) return;
+  if (!window.confirm('Reset the sticker back to the standard settings (name, price and barcode)?')) return;
   applySettings(DEFAULTS);
   saveSettings();
   updatePreview();
@@ -1286,11 +1342,7 @@ function renderCountAndWarnings(list) {
       a.className = 'issue-link';
       a.textContent = 'Row ' + r.sheetRow + ' · ' + rowName(r) + ': ' + pick(r).join('; ');
       a.title = 'Show this sticker';
-      a.onclick = function() {
-        previewIdx = list.indexOf(r);
-        updatePreview();
-        document.getElementById('previewCanvas').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      };
+      a.onclick = function() { showRow(list.indexOf(r)); };
       li.appendChild(a);
       ul.appendChild(li);
     });
@@ -1317,33 +1369,93 @@ function renderCountAndWarnings(list) {
   box(soft, true, plural(soft.length, 'row', 'rows') + ' will print, but please check:', notesFor);
 }
 
-function updatePreview() {
-  var list = selection();
-  renderCountAndWarnings(list);
+// ─── TRY A NAME ──────────────────────────────────────────────
+// A test sticker typed in "Try a name". It is shown instead of the list, and is
+// never added to the sheet or the PDF.
 
+var tryRow = null;
+var TRY_EXAMPLE = { price: '148.00', sku: '1800001001-35' };
+
+function onTryInput() {
+  var shoe = document.getElementById('tryShoe').value.trim();
+  var price = document.getElementById('tryPrice').value.trim();
+  var sku = document.getElementById('trySku').value.trim();
+  tryRow = null;
+  if (shoe || price || sku) {
+    tryRow = { sheetRow: 0, shoe: shoe, price: price || TRY_EXAMPLE.price, sku: sku || TRY_EXAMPLE.sku, copies: '' };
+    checkRow(tryRow);
+  }
+  document.getElementById('tryTag').hidden = !tryRow;
+  updatePreview();
+}
+
+function clearTry(quiet) {
+  ['tryShoe', 'tryPrice', 'trySku'].forEach(function(id) { document.getElementById(id).value = ''; });
+  tryRow = null;
+  document.getElementById('tryTag').hidden = true;
+  if (!quiet) updatePreview();
+}
+
+// Show sticker i of the current list in the big preview.
+function showRow(i) {
+  if (tryRow) clearTry(true);
+  previewIdx = i;
+  updatePreview();
+  document.getElementById('previewCanvas').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+// ─── SEE ALL STICKERS ────────────────────────────────────────
+
+var ALL_MAX = 300;   // more than this would make the page slow
+
+function toggleAll() {
+  var grid = document.getElementById('allGrid');
+  grid.hidden = !grid.hidden;
+  document.getElementById('allBtn').textContent = grid.hidden ? 'Show all stickers' : 'Hide all stickers';
+  if (grid.hidden) { grid.innerHTML = ''; document.getElementById('allNote').textContent = ''; }
+  else renderAll(selection());
+}
+
+function renderAll(list) {
+  var grid = document.getElementById('allGrid');
+  grid.innerHTML = '';
+  document.getElementById('allNote').textContent = !list.length ? 'No stickers yet.'
+    : 'Red = will not print, yellow = please check. Click a sticker to see it big.' +
+      (list.length > ALL_MAX ? ' Showing the first ' + ALL_MAX + '.' : '');
+  list.slice(0, ALL_MAX).forEach(function(r, i) {
+    var item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'all-item';
+    var c = document.createElement('canvas');
+    var label = document.createElement('div');
+    label.textContent = 'Row ' + r.sheetRow + (r.copiesN > 1 ? ' · ' + r.copiesN + ' copies' : '');
+    item.appendChild(c);
+    item.appendChild(label);
+    grid.appendChild(item);
+    var L = drawSticker(c, r, 180);
+    if (r.errors.length) item.classList.add('bad');
+    else if (r.warnings.length || L.notes.length || L.cuts.length) item.classList.add('warn');
+    if (!tryRow && i === previewIdx) item.classList.add('current');
+    item.title = rowName(r);
+    item.onclick = function() { showRow(i); };
+  });
+}
+
+// ─── DRAWING ─────────────────────────────────────────────────
+
+// Draw one sticker into a canvas cssW px wide, exactly as the PDF prints it.
+// Returns its layout.
+function drawSticker(canvas, r, cssW) {
   var W = LABEL_W, H = LABEL_H;
-  var canvas = document.getElementById('previewCanvas');
-  var cssW = 400, sc = cssW / W;                    // px per mm
+  var sc = cssW / W;                                 // px per mm
   var dpr = window.devicePixelRatio || 1;
-  canvas.style.width = cssW + 'px';
-  canvas.style.height = (H * sc) + 'px';
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(H * sc * dpr);
   var ctx = canvas.getContext('2d');
   ctx.setTransform(dpr * sc, 0, 0, dpr * sc, 0, 0);  // draw in mm from here on
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
-
-  var n = list.length;
-  if (previewIdx >= n) previewIdx = n - 1;
-  if (previewIdx < 0) previewIdx = 0;
-  document.getElementById('prevBtn').disabled = previewIdx <= 0;
-  document.getElementById('nextBtn').disabled = previewIdx >= n - 1;
-  document.getElementById('previewPos').textContent = n ? 'Row ' + list[previewIdx].sheetRow + ' (' + (previewIdx + 1) + ' of ' + n + ')' : 'Sample sticker';
-
-  var r = n ? list[previewIdx] : sampleRow();
-  var st = getSettings();
-  var L = layout(r, pdfMeasure(), st);
+  var L = layout(r, pdfMeasure(), getSettings());
 
   ctx.fillStyle = '#000';
   if (L.divider) ctx.fillRect(PAD, L.divider - DIVIDER_W / 2, W - 2 * PAD, DIVIDER_W);
@@ -1368,11 +1480,35 @@ function updatePreview() {
     ctx.fillText(it.text, it.x, baselineY(it));
   });
   ctx.textAlign = 'left';
+  return L;
+}
 
-  var bad = n && r.errors.length;
+function updatePreview() {
+  var list = selection();
+  renderCountAndWarnings(list);
+
+  var n = list.length;
+  if (previewIdx >= n) previewIdx = n - 1;
+  if (previewIdx < 0) previewIdx = 0;
+  document.getElementById('prevBtn').disabled = !!tryRow || previewIdx <= 0;
+  document.getElementById('nextBtn').disabled = !!tryRow || previewIdx >= n - 1;
+  document.getElementById('previewPos').textContent = tryRow ? 'Your test sticker (not in the PDF)'
+    : n ? 'Row ' + list[previewIdx].sheetRow + ' (' + (previewIdx + 1) + ' of ' + n + ')' : 'Sample sticker';
+
+  var r = tryRow || (n ? list[previewIdx] : sampleRow());
+  var canvas = document.getElementById('previewCanvas');
+  var cssW = 400;   // shrinks to fit on a phone (CSS keeps the 50 x 30 shape)
+  canvas.style.width = '100%';
+  canvas.style.maxWidth = cssW + 'px';
+  canvas.style.height = 'auto';
+  var L = drawSticker(canvas, r, cssW);
+
+  var real = !!tryRow || n > 0;
+  var bad = real && r.errors.length;
   canvas.classList.toggle('bad', !!bad);
-  document.getElementById('singleBtn').disabled = !n || !!bad;
-  renderSpecs(n ? r : null, L);
+  document.getElementById('singleBtn').disabled = !real || !!bad;
+  renderSpecs(real ? r : null, L);
+  if (!document.getElementById('allGrid').hidden) renderAll(list);
 }
 
 // Measurements of the barcode on the sticker shown, so it can be checked against spec.
@@ -1480,7 +1616,7 @@ async function downloadAll() {
 
 // Test print: one copy of the sticker shown in the preview.
 async function downloadSingle() {
-  var r = selection()[previewIdx];
+  var r = tryRow || selection()[previewIdx];
   if (!r || r.errors.length) return;
   try {
     var doc = await buildPdf([Object.assign({}, r, { copiesN: 1 })]);
