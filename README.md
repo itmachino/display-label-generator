@@ -8,8 +8,8 @@ Each sticker shows the **shoe**, the **price** and a **barcode** of the SKU.
 
 ```text
 ┌──────────────────────────────────┐
-│ Hana OG Flats                    │
-│ in White             RM 148.00   │  ← name big and bold, price small
+│ Hana OG Flats                RM  │
+│ in White                 148.00  │  ← name big and bold (max 2 lines), price small
 │──────────────────────────────────│
 │ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌  │
 │ ║▌║║▌▌║▌║║▌║▌║║▌║▌▌║║▌║▌║║▌║║▌  │
@@ -17,8 +17,10 @@ Each sticker shows the **shoe**, the **price** and a **barcode** of the SKU.
    50 × 30 mm · NIIMBOT B1
 ```
 
-Long names fit by themselves: first a little smaller, then 2 lines, then 3 smaller lines.
-The price is always smaller than the name. Only a very long name (about 60+ characters) gets its last words left off.
+The name is never more than **2 lines**. A long name gets smaller by itself (down to 7pt) until it fits in 2 lines,
+split where it reads best (a new line before "in <colour>"). The price is always smaller than the name, and
+gets smaller first if the name needs room. Every sticker has the same shape: the line and barcode never move.
+Only a very long name (about 55+ characters) gets its last words left off.
 
 ## Why the barcode matters most
 
@@ -86,8 +88,8 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 | SHOE is empty | Yellow: prints with no name |
 | SKU looks like our usual SKU (10 numbers, "-", size) | Yellow: prints, but check it |
 | SKU has a letter O, I or l (maybe meant 0 or 1) | Yellow: prints, but check it |
-| Shoe name very long: printed small (7pt) on 3 lines | Yellow: prints, but check it is easy to read |
-| Shoe name too long even on 3 small lines, last words left off | Yellow: prints, but shorten it in the sheet |
+| Shoe name long: printed small (under 8pt) to fit 2 lines | Yellow: prints, but check it is easy to read |
+| Shoe name too long even small on 2 lines, last words left off | Yellow: prints, but shorten it in the sheet |
 | Bars shorter than 10 mm | Yellow: prints, but check it |
 
 ## How the barcode is made (for IT)
