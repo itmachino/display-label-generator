@@ -44,7 +44,7 @@ flowchart LR
 2. Open the website. The list **loads by itself**.
 3. Look at the preview. Fix any row in **red** in the sheet, wait 1–2 minutes, then press **Load**.
 4. Press **Download PDF**.
-5. Open the PDF in the **NIIMBOT** app. Print at **100% size** (no "fit" or "scale").
+5. Open the PDF in the **NIIMBOT** app and print. Delete the extra **"Double-click to Edit"** box first.
 
 Print **one** sticker first, scan it with Stock check, then print the rest.
 
