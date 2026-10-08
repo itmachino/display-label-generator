@@ -89,10 +89,10 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 | PRICE is a number (e.g. 208.00) | Red: will not print |
 | SKU has only letters, numbers and "-", no spaces | Red: will not print |
 | The same SKU has the same shoe and price on every row | Red: will not print |
-| The barcode fits on the sticker | Red: will not print |
+| The barcode fits on the sticker (if not, a QR code is used instead) | – |
 | The barcode reads back correctly (a barcode reader checks it) | Red: will not print |
 | SHOE is empty | Yellow: prints with no name |
-| SKU looks like our usual SKU (10 numbers, "-", size) | Yellow: prints, but check it |
+| SKU looks like one of our SKU styles (e.g. `1800044001-36`, `MF5022-3-05-39`, `MW-SK-F-1010-3-01-44`) | Yellow: prints, but check it |
 | SKU has a letter O, I or l (maybe meant 0 or 1) | Yellow: prints, but check it |
 | Shoe name long: printed small (under 8pt) to fit 2 lines | Yellow: prints, but check it is easy to read |
 | Shoe name too long even small on 2 lines, last words left off | Yellow: prints, but shorten it in the sheet |
@@ -105,6 +105,10 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 - **Quiet zone:** a blank space 10 bars wide at both ends, inside the part of the sticker the B1 prints.
 - **Drawing:** bars are exact shapes in the PDF, not a picture, so they stay sharp.
 - **Check:** before printing, each barcode is drawn at the printer's resolution and read back with a barcode reader (ZXing). It must give back the same SKU.
+- **Long SKUs get a QR code.** A long SKU (e.g. `MA6021-14-EB-20-35`) makes a barcode wider than the 47 mm the B1 prints.
+  Those stickers get a **QR code of the same SKU**, with the SKU written next to it. The POS camera (Stock check) reads QR codes too.
+  Every QR square is a whole number of printer dots (3–6 dots), with a 4-square quiet zone, and each QR code is read back at
+  every size it may print before it is allowed to print.
 
 Built from two earlier tools: the [Photoshoot Label Generator](https://itmachino.github.io/label-generator/) (sheet loading, settings, checks) and the [david-lee-mac Label Generator](https://david-lee-mac.github.io/label-generator/) (templates, barcode measurements, drop-a-CSV).
 
@@ -118,6 +122,7 @@ Built from two earlier tools: the [Photoshoot Label Generator](https://itmachino
 | `test-data/test-stickers.csv` | 6 test stickers, for the print test. |
 | `test-data/test-stickers.pdf` | Those 6 stickers, ready to print. |
 | `test-data/bad-rows.csv` | Rows with mistakes, to check the website catches them. |
+| `test-data/qr-stickers.csv` | 4 long SKUs (QR code) and 1 short SKU (barcode), for the QR print test. |
 
 **Test stickers are for testing only.** Their prices are examples. Do not put them on shoes.
 

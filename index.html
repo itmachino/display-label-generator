@@ -8,6 +8,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<!-- QR codes: only for SKUs too long for a barcode on a 50 mm sticker. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <!-- Barcode reader: used only to double-check every barcode before it is printed. -->
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <style>
@@ -654,10 +656,12 @@ function checkRow(r) {
   else if (!/^[A-Za-z0-9-]+$/.test(r.code)) r.errors.push('SKU "' + r.code + '" has a character that is not a letter, number or "-"');
   else if (r.code.length < 3 || r.code.length > 40) r.errors.push('SKU "' + r.code + '" must be 3 to 40 characters long');
   else {
-    if (!/^\d{10}(-\d{1,3})?$/.test(r.code)) {
-      r.warnings.push('SKU "' + r.code + '" does not look like our usual SKU (10 numbers, then "-" and the size). Check it in Shopify');
+    // Our SKU styles: "1800044001-36" (10 numbers, size) and letter styles such as
+    // "MF5022-3-05-39", "MQ60490-1-PW-20-38", "MW-SK-F-1010-3-01-44" (letters, 4-5 numbers, parts, size).
+    if (!/^\d{10}(-\d{1,3})?$/.test(r.code) && !/^[A-Z]{2}(-[A-Z]{1,2})*-?\d{4,5}(-[A-Z0-9]{1,4})*-\d{1,3}$/.test(r.code)) {
+      r.warnings.push('SKU "' + r.code + '" does not look like our usual SKU (e.g. 1800044001-36 or MF5022-3-05-39). Check it in Shopify');
     }
-    if (/[OoIl]/.test(r.code) && /\d/.test(r.code)) {
+    if (/\d[OoIl]|[OoIl]\d/.test(r.code)) {
       r.warnings.push('SKU has the letter O, I or l. Should it be the number 0 or 1?');
     }
   }
@@ -800,12 +804,14 @@ function barcodeFor(text) {
       if ((p.modules + 2 * QUIET) * X_DOTS[i] * DOT <= avail) { xDots = X_DOTS[i]; break; }
     }
     if (!xDots) {
-      res = { ok: false, reason: 'SKU "' + text + '" is too long for a 50 mm sticker. Check it is the right SKU' };
+      // Too long for a barcode on this sticker: use a QR code of the same SKU.
+      res = window.qrcode ? qrFor(text)
+        : { ok: false, reason: 'SKU "' + text + '" is too long for a barcode, and the QR maker did not load (no internet?). Reload the page' };
     } else {
       var X = xDots * DOT;
       var codeW = p.modules * X;
       var x0 = Math.round(((LABEL_W - codeW) / 2) / DOT) * DOT;   // centred, snapped to a whole dot
-      res = { ok: true, bars: p.bars, modules: p.modules, xDots: xDots, X: X, x0: x0, codeW: codeW, quiet: QUIET * X };
+      res = { ok: true, kind: 'code128', bars: p.bars, modules: p.modules, xDots: xDots, X: X, x0: x0, codeW: codeW, quiet: QUIET * X };
       res.check = verifyBarcode(text, res);
     }
   } catch (e) {
@@ -838,6 +844,120 @@ function verifyBarcode(text, bc) {
   } catch (e) {
     return 'fail';
   }
+}
+
+// ─── QR CODE (for SKUs too long for a barcode) ───────────────
+// A long SKU (e.g. "MA6021-14-EB-20-35") makes a Code 128 barcode wider than the
+// 47 mm the B1 prints. Those stickers get a QR code of the SAME SKU instead: the POS
+// camera (Stock check) reads QR codes too, and gets the same text as from a barcode.
+//  - Error correction M (15%), so a small scratch still reads.
+//  - Every square is a whole number of printer dots (6, 5, 4 or at least 3 = 0.375 mm).
+//  - A blank quiet zone of 4 squares around it.
+//  - Read back with a QR reader before it can print.
+var QR_DOTS = [6, 5, 4, 3];   // square size to try, biggest first
+var QR_QUIET = 4;             // quiet zone, in squares
+var QR_TEXT_GAP = 2.5;        // mm between the QR code and the SKU written next to it
+
+// Tries a few equally valid ways to write the same SKU (each gives a different square
+// pattern) and keeps the first one the QR reader reads back. Rarely the reader cannot
+// find one particular pattern; the next way fixes that.
+var QR_TRIES = [['M', 'Alphanumeric'], ['Q', 'Alphanumeric'], ['M', 'Byte'], ['Q', 'Byte'], ['L', 'Alphanumeric']];
+
+function qrFor(text) {
+  var alnum = /^[0-9A-Z $%*+\-.\/:]+$/.test(text);   // upper-case SKUs fit the compact mode
+  var res = null;
+  for (var t = 0; t < QR_TRIES.length; t++) {
+    var mode = QR_TRIES[t][1];
+    if (mode === 'Alphanumeric' && !alnum) continue;
+    var qr = qrcode(0, QR_TRIES[t][0]);
+    qr.addData(text, mode);
+    qr.make();
+    var n = qr.getModuleCount(), dark = [];
+    for (var y = 0; y < n; y++) {
+      var line = [];
+      for (var x = 0; x < n; x++) line.push(qr.isDark(y, x));
+      dark.push(line);
+    }
+    res = { ok: true, kind: 'qr', n: n, dark: dark, level: QR_TRIES[t][0] };
+    res.check = verifyQr(text, res);
+    if (res.check !== 'fail') break;
+  }
+  return res;
+}
+
+// Draw the squares at every size the sticker may print them (1 px = 1 printer dot,
+// with the quiet zone) and read each with a QR reader. All sizes must read.
+function verifyQr(text, q) {
+  if (!window.ZXing) return 'unchecked';
+  for (var i = 0; i < QR_DOTS.length; i++) {
+    if (verifyQrAt(text, q, QR_DOTS[i]) !== 'ok') return 'fail';
+  }
+  return 'ok';
+}
+
+function verifyQrAt(text, q, s) {
+  try {
+    var w = (q.n + 2 * QR_QUIET) * s;
+    var lum = new Uint8ClampedArray(w * w);
+    lum.fill(255);
+    for (var y = 0; y < q.n; y++) for (var x = 0; x < q.n; x++) {
+      if (!q.dark[y][x]) continue;
+      for (var dy = 0; dy < s; dy++) for (var dx = 0; dx < s; dx++) lum[((QR_QUIET + y) * s + dy) * w + (QR_QUIET + x) * s + dx] = 0;
+    }
+    var bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.RGBLuminanceSource(lum, w, w)));
+    var hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+    var reader = new ZXing.MultiFormatReader();
+    reader.setHints(hints);
+    return reader.decode(bitmap).getText() === text ? 'ok' : 'fail';
+  } catch (e) {
+    return 'fail';
+  }
+}
+
+// Put the QR code at the left of the barcode area and the SKU, written out, to its right.
+// whiteTop = the lowest text or line above it (mm). Adds L.marks, L.qr and the SKU text items.
+function placeQr(L, q, code, st, measure, whiteTop) {
+  var m, size, top;
+  for (var i = 0; i < QR_DOTS.length; i++) {
+    m = QR_DOTS[i] * DOT;
+    size = q.n * m;
+    top = whiteTop + QR_QUIET * m;
+    if (top + size <= BAR_BOTTOM || i === QR_DOTS.length - 1) break;
+  }
+  var x0 = snapDot(Math.max(PAD, QR_QUIET * m));
+  var y0 = snapDot(top + Math.max(0, (BAR_BOTTOM - top - size) / 2));
+  L.marks = [];
+  q.dark.forEach(function(line, y) {
+    for (var x = 0; x < q.n; x++) {
+      if (!line[x]) continue;
+      var from = x;
+      while (x < q.n && line[x]) x++;
+      L.marks.push({ x: x0 + from * m, y: y0 + y * m, w: (x - from) * m, h: m });
+    }
+  });
+  L.qr = { m: m, dots: Math.round(m / DOT), size: size, quiet: QR_QUIET * m };
+
+  // The SKU next to it, so people can read it too: one line if it fits, else split at a "-".
+  var tx = x0 + size + QR_TEXT_GAP, tw = LABEL_W - PAD - tx, cy = y0 + size / 2, font = st.skuFont;
+  var fits = function(t, pt) { return measure(t, pt, false, font) <= tw; };
+  var lines = [code], pt;
+  for (pt = 10; pt >= 6 && !fits(code, pt); pt -= 0.5) {}
+  if (pt < 6) {
+    var best = null;
+    code.split('').forEach(function(c, k) {
+      if (c !== '-' || k === 0) return;
+      var a = code.slice(0, k + 1), b = code.slice(k + 1);
+      var worst = Math.max(measure(a, 10, false, font), measure(b, 10, false, font));
+      if (!best || worst < best.worst) best = { a: a, b: b, worst: worst };
+    });
+    lines = best ? [best.a, best.b] : [code];
+    for (pt = 10; pt > 5 && !lines.every(function(t) { return fits(t, pt); }); pt -= 0.5) {}
+  }
+  var pitch = pt * PT_MM * 1.3;
+  lines.forEach(function(t, k) {
+    L.items.push({ text: t, x: tx, y: cy + (k - (lines.length - 1) / 2) * pitch, pt: pt, bold: false, align: 'left', font: font });
+  });
 }
 
 // ─── STICKER LAYOUT ──────────────────────────────────────────
@@ -1011,6 +1131,10 @@ function layout(r, measure, st) {
   while (L.nameLines === 3 && L.namePt > THREE_LINE_MIN_PT && L.barBottom - L.barTop < MIN_BAR_H) {
     L = layoutWith(r, measure, st, Math.min(L.namePt, THREE_LINE_MAX_PT) - 0.5);
   }
+  // L.marks: the black rectangles of the code (bars, or QR squares), in mm.
+  L.marks = [];
+  if (L.bc && L.bc.kind === 'qr') placeQr(L, L.bc, r.code, st, measure, L.barTop - BAR_GAP);
+  else if (L.bc) L.marks = barRects(L.bc).map(function(b) { return { x: b.x, y: L.barTop, w: b.w, h: L.barBottom - L.barTop }; });
   return L;
 }
 
@@ -1109,7 +1233,7 @@ function layoutBoxed(r, measure, st) {
   var rules = st.showDivider ? [{ x: PAD, y: bandBottom, w: LABEL_W - 2 * PAD, h: RULE_W }] : [];
   var barTop = bandBottom + (rules.length ? RULE_W : 0) + BAR_GAP;
   var barBottom = BAR_BOTTOM;
-  if (st.showSkuText && r.code) {
+  if (st.showSkuText && r.code && !(r.bc && r.bc.kind === 'qr')) {
     var skuCap = capMM(st.skuPt);
     items.push({ text: r.code, x: LABEL_W / 2, y: BAR_BOTTOM - skuCap / 2, pt: st.skuPt, bold: false, align: 'center', font: st.skuFont });
     barBottom = BAR_BOTTOM - skuCap - SKU_GAP;
@@ -1161,7 +1285,7 @@ function layoutWith(r, measure, st, shoeMaxPt) {
   var divider = hasText && st.showDivider ? Math.max(DIVIDER_Y, bandBottom + 0.4) : null;
   var barTop = !hasText ? BAR_TOP_ONLY : (divider ? divider + DIVIDER_W / 2 : bandBottom) + BAR_GAP;
   var barBottom = BAR_BOTTOM;
-  if (st.showSkuText && r.code) {
+  if (st.showSkuText && r.code && !(r.bc && r.bc.kind === 'qr')) {
     var skuCap = capMM(st.skuPt);
     items.push({ text: r.code, x: LABEL_W / 2, y: BAR_BOTTOM - skuCap / 2, pt: st.skuPt, bold: false, align: 'center', font: st.skuFont });
     barBottom = BAR_BOTTOM - skuCap - SKU_GAP;
@@ -1359,7 +1483,7 @@ function renderCountAndWarnings(list) {
   var notesFor = function(r) {
     var L = layout(r, measure, st);
     var n = r.warnings.concat(L.notes, L.cuts.map(function(c) { return c.field + ' is too long to fit, even small, "' + c.dropped + '" will not print. Shorten it in the sheet'; }));
-    if (L.bc && L.barBottom - L.barTop < MIN_BAR_H) n.push('barcode bars are short, untick "SKU under barcode" or make the text smaller');
+    if (L.bc && L.bc.kind !== 'qr' && L.barBottom - L.barTop < MIN_BAR_H) n.push('barcode bars are short, untick "SKU under barcode" or make the text smaller');
     return n;
   };
   var bad = list.filter(function(r) { return r.errors.length; });
@@ -1461,7 +1585,7 @@ function drawSticker(canvas, r, cssW) {
   if (L.divider) ctx.fillRect(PAD, L.divider - DIVIDER_W / 2, W - 2 * PAD, DIVIDER_W);
   (L.rules || []).forEach(function(q) { ctx.fillRect(q.x, q.y, q.w, q.h); });
   if (L.bc) {
-    barRects(L.bc).forEach(function(b) { ctx.fillRect(b.x, L.barTop, b.w, L.barBottom - L.barTop); });
+    L.marks.forEach(function(b) { ctx.fillRect(b.x, b.y, b.w, b.h + 0.01); });   // +0.01: no hairline gaps on screen
   } else {
     ctx.strokeStyle = '#dc2626';
     ctx.lineWidth = 0.3;
@@ -1527,6 +1651,17 @@ function renderSpecs(r, L) {
   var check = bc.check === 'ok'
     ? row('Read-back check', '✓ reads ' + escHtml(r.code), 'ok')
     : row('Read-back check', 'could not run (no internet?) — test-print one first', 'soft');
+  if (bc.kind === 'qr') {
+    el.innerHTML = '<div class="spec-title">Printed code — QR (SKU too long for a barcode)</div>' +
+      row('Encodes (SKU)', escHtml(r.code)) +
+      row('Square size <span style="color:#aaa">(min 0.375mm)</span>', L.qr.m.toFixed(3) + 'mm = ' + L.qr.dots + ' printer dots ✓', 'ok') +
+      row('QR size', L.qr.size.toFixed(1) + ' × ' + L.qr.size.toFixed(1) + 'mm (' + bc.n + ' × ' + bc.n + ' squares)') +
+      row('Quiet zone <span style="color:#aaa">(4 squares)</span>', L.qr.quiet.toFixed(2) + 'mm ✓', 'ok') +
+      row('Why a QR code', 'a barcode of this SKU would be wider than ' + (LABEL_W - 2 * EDGE) + 'mm') +
+      check +
+      (r.copiesN > 1 ? row('Copies', r.copiesN) : '');
+    return;
+  }
   el.innerHTML = '<div class="spec-title">Printed barcode — Code 128</div>' +
     row('Encodes (SKU)', escHtml(r.code)) +
     row('Narrow bar width <span style="color:#aaa">(min 0.25mm)</span>', bc.X.toFixed(3) + 'mm = ' + bc.xDots + ' printer dots ✓', 'ok') +
@@ -1565,7 +1700,7 @@ async function buildPdf(list, onProgress) {
       doc.setFillColor(0, 0, 0);
       if (L.divider) doc.rect(PAD, L.divider - DIVIDER_W / 2, W - 2 * PAD, DIVIDER_W, 'F');
       (L.rules || []).forEach(function(q) { doc.rect(q.x, q.y, q.w, q.h, 'F'); });
-      barRects(L.bc).forEach(function(b) { doc.rect(b.x, L.barTop, b.w, L.barBottom - L.barTop, 'F'); });
+      L.marks.forEach(function(b) { doc.rect(b.x, b.y, b.w, b.h, 'F'); });
       doc.setTextColor(0, 0, 0);
       L.items.forEach(function(it) {
         doc.setFont(it.font || 'helvetica', it.bold ? 'bold' : 'normal');
