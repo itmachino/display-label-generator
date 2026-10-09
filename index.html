@@ -346,7 +346,7 @@
         <label><input type="checkbox" id="showDivider" checked onchange="onSettingsChange()"> Line above the code</label>
       </div>
       <div class="fld">
-        <label><input type="checkbox" id="showSkuText" onchange="onSettingsChange()"> SKU under barcode</label>
+        <label><input type="checkbox" id="showSkuText" onchange="onSettingsChange()"> SKU under the code</label>
         <input type="range" id="skuPt" min="6" max="10" step="0.5" value="7" aria-label="SKU text size" oninput="onSettingsChange()">
         <span class="slider-value" id="skuPtVal">7pt</span>
       </div>
@@ -358,7 +358,7 @@
         </select>
         <span></span>
       </div>
-      <p class="help-text">NEW SKUs get a barcode. OLD SKUs (with letters) get a QR code with the SKU written next to it. Both scan.</p>
+      <p class="help-text">NEW SKUs get a barcode, OLD SKUs (with letters) get a QR code. Both scan. &ldquo;SKU under the code&rdquo; prints the SKU under either one.</p>
       <div class="adv-actions">
         <button type="button" class="btn-sm ghost" onclick="resetSettings()">Reset to default</button>
       </div>
@@ -818,7 +818,6 @@ function verifyBarcode(text, bc) {
 //  - Read back with a QR reader before it can print.
 var QR_DOTS = [6, 5, 4, 3];   // square size to try, biggest first
 var QR_QUIET = 4;             // quiet zone, in squares
-var QR_TEXT_GAP = 2.5;        // mm between the QR code and the SKU written next to it
 
 // Tries a few equally valid ways to write the same SKU (each gives a different square
 // pattern) and keeps the first one the QR reader reads back. Rarely the reader cannot
@@ -880,15 +879,22 @@ function verifyQrAt(text, q, s) {
 // Put the QR code at the left of the barcode area and the SKU, written out, to its right.
 // whiteTop = the lowest text or line above it (mm). Adds L.marks, L.qr and the SKU text items.
 function placeQr(L, q, code, st, measure, whiteTop) {
+  // Like the barcode: the QR code in the middle, and the SKU under it only when
+  // "SKU under the code" is ticked.
+  var bottom = BAR_BOTTOM, skuCap = 0;
+  if (st.showSkuText) {
+    skuCap = capMM(st.skuPt);
+    bottom = BAR_BOTTOM - skuCap - SKU_GAP;
+  }
   var m, size, top;
   for (var i = 0; i < QR_DOTS.length; i++) {
     m = QR_DOTS[i] * DOT;
     size = q.n * m;
     top = whiteTop + QR_QUIET * m;
-    if (top + size <= BAR_BOTTOM || i === QR_DOTS.length - 1) break;
+    if (top + size <= bottom || i === QR_DOTS.length - 1) break;
   }
-  var x0 = snapDot(Math.max(PAD, QR_QUIET * m));
-  var y0 = snapDot(top + Math.max(0, (BAR_BOTTOM - top - size) / 2));
+  var x0 = snapDot((LABEL_W - size) / 2);
+  var y0 = snapDot(top + Math.max(0, (bottom - top - size) / 2));
   L.marks = [];
   q.dark.forEach(function(line, y) {
     for (var x = 0; x < q.n; x++) {
@@ -899,27 +905,9 @@ function placeQr(L, q, code, st, measure, whiteTop) {
     }
   });
   L.qr = { m: m, dots: Math.round(m / DOT), size: size, quiet: QR_QUIET * m };
-
-  // The SKU next to it, so people can read it too: one line if it fits, else split at a "-".
-  var tx = x0 + size + QR_TEXT_GAP, tw = LABEL_W - PAD - tx, cy = y0 + size / 2, font = st.skuFont;
-  var fits = function(t, pt) { return measure(t, pt, false, font) <= tw; };
-  var lines = [code], pt;
-  for (pt = 10; pt >= 6 && !fits(code, pt); pt -= 0.5) {}
-  if (pt < 6) {
-    var best = null;
-    code.split('').forEach(function(c, k) {
-      if (c !== '-' || k === 0) return;
-      var a = code.slice(0, k + 1), b = code.slice(k + 1);
-      var worst = Math.max(measure(a, 10, false, font), measure(b, 10, false, font));
-      if (!best || worst < best.worst) best = { a: a, b: b, worst: worst };
-    });
-    lines = best ? [best.a, best.b] : [code];
-    for (pt = 10; pt > 5 && !lines.every(function(t) { return fits(t, pt); }); pt -= 0.5) {}
+  if (st.showSkuText) {
+    L.items.push({ text: code, x: LABEL_W / 2, y: BAR_BOTTOM - skuCap / 2, pt: st.skuPt, bold: false, align: 'center', font: st.skuFont });
   }
-  var pitch = pt * PT_MM * 1.3;
-  lines.forEach(function(t, k) {
-    L.items.push({ text: t, x: tx, y: cy + (k - (lines.length - 1) / 2) * pitch, pt: pt, bold: false, align: 'left', font: font });
-  });
 }
 
 // ─── STICKER LAYOUT ──────────────────────────────────────────

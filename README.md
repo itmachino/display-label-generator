@@ -46,7 +46,7 @@ flowchart LR
 4. Tap **Print**: check the stickers, change copies, press **Download PDF**.
 5. Open the PDF in the **NIIMBOT** app and print. Delete the extra **"Double-click to Edit"** box first.
 
-The phone remembers the print list until you print. NEW SKUs (numbers) get a barcode, OLD SKUs (letters) get a QR code.
+The phone remembers the print list until you print. NEW SKUs (numbers) get a barcode, OLD SKUs (letters) get a QR code, both in the middle of the sticker.
 
 Print **one** sticker first, scan it with Stock check, then print the rest.
 
@@ -110,7 +110,7 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 - **Drawing:** bars are exact shapes in the PDF, not a picture, so they stay sharp.
 - **Check:** before printing, each barcode is drawn at the printer's resolution and read back with a barcode reader (ZXing). It must give back the same SKU.
 - **Long SKUs get a QR code.** A long SKU (e.g. `MA6021-14-EB-20-35`) makes a barcode wider than the 47 mm the B1 prints.
-  Those stickers get a **QR code of the same SKU**, with the SKU written next to it. The POS camera (Stock check) reads QR codes too.
+  Those stickers get a **QR code of the same SKU**, in the middle of the sticker. "SKU under the code" prints the SKU under it, like under a barcode. The POS camera (Stock check) reads QR codes too.
   Every QR square is a whole number of printer dots (3–6 dots), with a 4-square quiet zone, and each QR code is read back at
   every size it may print before it is allowed to print.
 
