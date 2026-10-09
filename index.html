@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#f4f5f7">
+<meta name="theme-color" content="#F6EDEA">
 <title>Display Stickers · Machino</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='4' y='14' width='56' height='36' rx='4' fill='%23fff' stroke='%23222' stroke-width='3'/><rect x='11' y='20' width='26' height='4' fill='%23222'/><rect x='40' y='20' width='13' height='5' fill='%23222'/><g fill='%23222'><rect x='11' y='30' width='2' height='14'/><rect x='15' y='30' width='4' height='14'/><rect x='21' y='30' width='2' height='14'/><rect x='25' y='30' width='6' height='14'/><rect x='33' y='30' width='2' height='14'/><rect x='37' y='30' width='4' height='14'/><rect x='43' y='30' width='2' height='14'/><rect x='47' y='30' width='6' height='14'/></g></svg>">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -13,191 +13,226 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <!-- Barcode reader: used only to double-check every barcode before it is printed. -->
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
 <style>
+  /* Soft pink and beige, built to be read fast on a phone in the shop.
+     Atkinson Hyperlegible for everything people read (1/7 and 3/8 never look alike: sizes, SKUs, prices);
+     Fraunces only for the title. One bold thing: the size buttons. */
   :root {
-    --ink: #111; --muted: #6b7280; --line: #e5e7eb; --bg: #f4f5f7; --card: #fff;
-    --red: #dc2626; --red-bg: #fef2f2; --red-ink: #991b1b; --amber-bg: #fffbeb; --amber-ink: #92400e; --green: #15803d;
+    --blush: #F6EDEA;        /* page */
+    --shell: #FFFAF7;        /* cards and panels */
+    --sand: #E6D6CF;         /* lines and borders */
+    --ink: #3B2A2E;          /* text: deep plum-brown */
+    --soft: #7A6266;         /* secondary text */
+    --rose: #A84E64;         /* picked sizes, main buttons */
+    --rose-deep: #8E3F53;
+    --rose-mist: #F3DDE2;    /* hover / quiet highlights */
+    --red: #B42318; --red-bg: #FDECEA; --red-ink: #8A1C13;
+    --amber-bg: #FBF1DF; --amber-ink: #7A4A0E; --green: #2F7D4F;
+    --focus: 0 0 0 3px rgba(168, 78, 100, 0.35);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg); color: var(--ink); min-height: 100vh; padding-bottom: 96px;
+    font-family: 'Atkinson Hyperlegible', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 16px; line-height: 1.45;
+    background: var(--blush); color: var(--ink); min-height: 100vh; padding-bottom: 100px;
   }
   body.locked { overflow: hidden; }
   button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+  button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: none; box-shadow: var(--focus); }
   .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
 
   /* ── Top: title, search, filters ── */
-  .top { position: sticky; top: 0; z-index: 10; background: rgba(244, 245, 247, 0.96);
-         backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding: 12px 0 6px; }
+  .top { position: sticky; top: 0; z-index: 10; background: rgba(246, 237, 234, 0.95);
+         backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--sand); padding: 12px 0 6px; }
   .top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .top h1 { font-size: 20px; font-weight: 750; letter-spacing: -0.2px; line-height: 1.15; }
-  .top h1 small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
-  .icon-btn { width: 44px; height: 44px; flex: 0 0 auto; border-radius: 12px; border: 1px solid var(--line); background: #fff;
-              cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .top h1 { font-family: 'Fraunces', Georgia, serif; font-size: 26px; font-weight: 600; letter-spacing: -0.3px; line-height: 1.05;
+            font-variation-settings: 'SOFT' 100, 'WONK' 0; }
+  .top h1 small { display: block; font-family: 'Atkinson Hyperlegible', sans-serif; font-size: 13px; font-weight: 400; color: var(--soft); letter-spacing: 0; margin-top: 3px; }
+  .icon-btn { width: 46px; height: 46px; flex: 0 0 auto; border-radius: 14px; border: 1px solid var(--sand); background: var(--shell);
+              color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .icon-btn svg { width: 22px; height: 22px; }
-  .search { position: relative; margin-top: 10px; }
-  .search input { width: 100%; height: 48px; border: 1px solid var(--line); border-radius: 14px; padding: 0 46px 0 44px;
-                  font-size: 16px; background: #fff; outline: none; -webkit-appearance: none; appearance: none; }
-  .search input:focus { border-color: var(--ink); }
+  .search { position: relative; margin-top: 12px; }
+  .search input { width: 100%; height: 50px; border: 1.5px solid var(--sand); border-radius: 16px; padding: 0 46px 0 46px;
+                  font: inherit; font-size: 17px; color: var(--ink); background: var(--shell); outline: none; -webkit-appearance: none; appearance: none; }
+  .search input::placeholder { color: #A08A8E; }
+  .search input:focus { border-color: var(--rose); box-shadow: var(--focus); }
   .search input::-webkit-search-cancel-button { display: none; }
-  .search .glass { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--muted); pointer-events: none; }
-  .search .clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border: none;
-                   background: none; font-size: 20px; color: var(--muted); cursor: pointer; border-radius: 10px; }
+  .search .glass { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--soft); pointer-events: none; }
+  .search .clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border: none;
+                   background: none; font-size: 22px; color: var(--soft); cursor: pointer; border-radius: 12px; }
   .search .clear[hidden] { display: none; }
   .filters { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 4px; scrollbar-width: none; }
   .filters::-webkit-scrollbar { display: none; }
-  .chip { flex: 0 0 auto; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff;
-          font-size: 14px; font-weight: 650; color: #374151; cursor: pointer; white-space: nowrap; }
-  .chip .n { color: var(--muted); font-weight: 500; margin-left: 3px; }
-  .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
-  .chip.on .n { color: #d1d5db; }
-  .chip.check { color: var(--red-ink); border-color: #fecaca; background: var(--red-bg); }
+  .chip { flex: 0 0 auto; height: 38px; padding: 0 15px; border-radius: 999px; border: 1px solid var(--sand); background: var(--shell);
+          font-size: 15px; font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .chip .n { color: var(--soft); font-weight: 400; margin-left: 5px; }
+  .chip.on { background: var(--ink); color: var(--shell); border-color: var(--ink); }
+  .chip.on .n { color: #D9C6C9; }
+  .chip.check { color: var(--red-ink); border-color: #F2C4BE; background: var(--red-bg); }
   .chip.check.on { background: var(--red); border-color: var(--red); color: #fff; }
-  .load-line { font-size: 13px; color: var(--muted); padding: 4px 0 2px; min-height: 22px; }
-  .load-line.error { color: var(--red); font-weight: 650; }
+  .load-line { font-size: 14px; color: var(--soft); padding: 4px 0 2px; min-height: 24px; }
+  .load-line.error { color: var(--red); font-weight: 700; }
   .load-line.success { color: var(--green); }
 
   /* ── Shoe list ── */
-  .list { padding: 12px 0 24px; display: grid; gap: 10px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px 14px 12px; }
-  .card.picked { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
-  .card-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-  .card .name { font-size: 16px; font-weight: 700; line-height: 1.3; }
-  .card .price { font-size: 15px; font-weight: 650; white-space: nowrap; padding-top: 1px; }
-  .card .meta { font-size: 12px; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; word-break: break-all; }
+  .list { padding: 14px 0 24px; display: grid; gap: 10px; }
+  .card { position: relative; background: var(--shell); border: 1px solid var(--sand); border-radius: 18px; padding: 15px 15px 14px 18px; overflow: hidden; }
+  .card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: transparent; }
+  .card.picked::before { background: var(--rose); }   /* a rose edge = this shoe has stickers in the list */
+  .card-top { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; }
+  .card .name { font-size: 17px; font-weight: 700; line-height: 1.3; }
+  .card .price { font-size: 17px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .card .meta { font-size: 13px; color: var(--soft); margin-top: 2px; font-variant-numeric: tabular-nums; word-break: break-all; }
   .sizes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .size { min-width: 50px; height: 46px; padding: 0 10px; border-radius: 13px; border: 1.5px solid var(--line); background: #fff;
-          font-size: 16px; font-weight: 650; cursor: pointer; font-variant-numeric: tabular-nums; }
-  .size:active { transform: scale(0.96); }
-  .size.on { background: var(--ink); border-color: var(--ink); color: #fff; }
-  .size.one { padding: 0 18px; }
-  .size:disabled { opacity: 0.35; cursor: not-allowed; }
-  .note { font-size: 13px; margin-top: 10px; line-height: 1.45; padding: 8px 11px; border-radius: 11px; }
+  .size { min-width: 54px; height: 50px; padding: 0 10px; border-radius: 25px; border: 1.5px solid var(--sand); background: #fff; color: var(--ink);
+          font-size: 18px; font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums; transition: background 0.12s, border-color 0.12s, color 0.12s; }
+  .size:hover { border-color: var(--rose); }
+  .size:active { transform: scale(0.95); }
+  .size.on { background: var(--rose); border-color: var(--rose); color: #fff; }
+  .size.on:hover { background: var(--rose-deep); }
+  .size.one { padding: 0 20px; font-size: 16px; }
+  .size:disabled { opacity: 0.4; cursor: not-allowed; }
+  .note { font-size: 14px; margin-top: 10px; line-height: 1.45; padding: 9px 12px; border-radius: 12px; }
   .note.bad { background: var(--red-bg); color: var(--red-ink); }
   .note.warn { background: var(--amber-bg); color: var(--amber-ink); }
   .note p + p { margin-top: 4px; }
-  .empty { text-align: center; color: var(--muted); padding: 48px 16px; font-size: 15px; line-height: 1.6; }
-  .more-note { text-align: center; color: var(--muted); font-size: 13px; padding: 8px 0 0; }
+  .empty { text-align: center; color: var(--soft); padding: 48px 16px; font-size: 16px; line-height: 1.6; }
+  .more-note { text-align: center; color: var(--soft); font-size: 14px; padding: 8px 0 0; }
 
   /* ── Bottom bar ── */
-  .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: #fff; border-top: 1px solid var(--line);
-         box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.06); padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--shell); border-top: 1px solid var(--sand);
+         box-shadow: 0 -8px 24px rgba(59, 42, 46, 0.07); padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); }
   .bar .wrap { display: flex; align-items: center; gap: 12px; }
-  .bar-count { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; }
-  .bar-count small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
-  .bar-btn { height: 50px; padding: 0 24px; border-radius: 15px; border: none; background: var(--ink); color: #fff;
-             font-size: 16px; font-weight: 700; cursor: pointer; white-space: nowrap; }
-  .bar-btn:disabled { background: #d1d5db; cursor: not-allowed; }
+  .bar-count { flex: 1; min-width: 0; font-size: 18px; font-weight: 700; }
+  .bar-count small { display: block; font-size: 13px; color: var(--soft); font-weight: 400; }
+  .bar-btn { height: 52px; padding: 0 26px; border-radius: 16px; border: none; background: var(--rose); color: #fff;
+             font-size: 17px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .bar-btn:hover { background: var(--rose-deep); }
+  .bar-btn:disabled { background: #DCCBC6; color: #fff; cursor: not-allowed; }
 
   /* ── Full-screen panels (print list, settings) ── */
-  .panel { position: fixed; inset: 0; z-index: 30; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .panel { position: fixed; inset: 0; z-index: 30; background: var(--blush); overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .panel[hidden] { display: none; }
-  .panel-head { position: sticky; top: 0; z-index: 2; background: rgba(244, 245, 247, 0.96); backdrop-filter: blur(8px);
-                -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
-  .panel-head .wrap { display: flex; align-items: center; gap: 8px; height: 60px; }
-  .panel-head h2 { flex: 1; font-size: 18px; font-weight: 750; text-align: center; }
-  .head-btn { border: none; background: none; font-size: 15px; font-weight: 650; cursor: pointer; padding: 10px 4px; min-width: 72px; text-align: left; }
+  .panel-head { position: sticky; top: 0; z-index: 2; background: rgba(246, 237, 234, 0.95); backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--sand); }
+  .panel-head .wrap { display: flex; align-items: center; gap: 8px; height: 62px; }
+  .panel-head h2 { flex: 1; font-family: 'Fraunces', Georgia, serif; font-size: 21px; font-weight: 600; text-align: center; }
+  .head-btn { border: none; background: none; font-size: 16px; font-weight: 700; cursor: pointer; padding: 10px 4px; min-width: 76px; text-align: left; color: var(--ink); }
   .head-btn.right { text-align: right; color: var(--red); }
   .head-btn.right[hidden] { visibility: hidden; display: block; }
   .panel-body { padding: 16px 0 48px; }
 
-  .item { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 12px; margin-bottom: 12px; }
-  .item canvas { display: block; width: 100%; max-width: 420px; margin: 0 auto; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; }
+  .item { background: var(--shell); border: 1px solid var(--sand); border-radius: 18px; padding: 12px; margin-bottom: 12px; }
+  .item canvas { display: block; width: 100%; max-width: 420px; margin: 0 auto; border: 1px solid #D9C9C3; border-radius: 4px; background: #fff;
+                 box-shadow: 0 2px 6px rgba(59, 42, 46, 0.08); }
   .item.bad canvas { outline: 2px solid var(--red); outline-offset: 2px; }
   .item-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
   .item-info { flex: 1; min-width: 0; }
-  .item-info b { display: block; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .item-info span { font-size: 13px; color: var(--muted); }
-  .stepper { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 13px; overflow: hidden; flex: 0 0 auto; }
-  .stepper button { width: 42px; height: 42px; border: none; background: #fff; font-size: 22px; cursor: pointer; line-height: 1; }
-  .stepper button:disabled { color: #d1d5db; cursor: not-allowed; }
-  .stepper output { min-width: 28px; text-align: center; font-weight: 750; font-variant-numeric: tabular-nums; }
-  .remove { width: 42px; height: 42px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 13px; background: #fff;
-            cursor: pointer; color: var(--muted); display: flex; align-items: center; justify-content: center; }
+  .item-info b { display: block; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item-info span { font-size: 14px; color: var(--soft); }
+  .stepper { display: flex; align-items: center; border: 1px solid var(--sand); border-radius: 14px; overflow: hidden; flex: 0 0 auto; background: #fff; }
+  .stepper button { width: 44px; height: 44px; border: none; background: #fff; font-size: 22px; cursor: pointer; line-height: 1; color: var(--ink); }
+  .stepper button:disabled { color: #D9C9C3; cursor: not-allowed; }
+  .stepper output { min-width: 28px; text-align: center; font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
+  .remove { width: 44px; height: 44px; flex: 0 0 auto; border: 1px solid var(--sand); border-radius: 14px; background: #fff;
+            cursor: pointer; color: var(--soft); display: flex; align-items: center; justify-content: center; }
   .remove svg { width: 18px; height: 18px; }
   .item details { margin-top: 10px; }
-  .item summary { font-size: 13px; color: var(--muted); cursor: pointer; }
+  .item summary { font-size: 14px; color: var(--soft); cursor: pointer; }
 
-  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 56px; padding: 0 20px;
-         background: var(--ink); color: #fff; border: none; border-radius: 16px; font-size: 17px; font-weight: 750; cursor: pointer; }
-  .btn:disabled { background: #d1d5db; cursor: not-allowed; }
-  .btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); height: 48px; font-size: 15px; margin-top: 10px; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 58px; padding: 0 20px;
+         background: var(--rose); color: #fff; border: none; border-radius: 18px; font-size: 18px; font-weight: 700; cursor: pointer; }
+  .btn:hover { background: var(--rose-deep); }
+  .btn:disabled { background: #DCCBC6; cursor: not-allowed; }
+  .btn.ghost { background: var(--shell); color: var(--ink); border: 1px solid var(--sand); height: 50px; font-size: 16px; margin-top: 10px; }
   .btn.ghost[hidden] { display: none; }
-  .status { text-align: center; margin-top: 12px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+  .status { text-align: center; margin-top: 12px; font-size: 15px; color: var(--soft); line-height: 1.5; }
   .status.error { color: var(--red); }
-  .status.success { color: var(--green); font-weight: 650; }
-  .fix-note { font-size: 13px; color: var(--red); text-align: center; margin: 0 0 10px; }
+  .status.success { color: var(--green); font-weight: 700; }
+  .fix-note { font-size: 14px; color: var(--red); text-align: center; margin: 0 0 10px; }
   .fix-note:empty { display: none; }
-  .progress-bar-container { width: 100%; height: 6px; background: #e5e7eb; border-radius: 3px; margin-top: 12px; overflow: hidden; display: none; }
-  .progress-bar { height: 100%; background: var(--ink); border-radius: 3px; transition: width 0.3s ease; width: 0%; }
-  .tip { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; font-size: 14px; line-height: 1.6; margin-top: 16px; }
-  .tip h3 { font-size: 14px; margin-bottom: 4px; }
+  .progress-bar-container { width: 100%; height: 6px; background: var(--sand); border-radius: 3px; margin-top: 12px; overflow: hidden; display: none; }
+  .progress-bar { height: 100%; background: var(--rose); border-radius: 3px; transition: width 0.3s ease; width: 0%; }
+  .tip { background: var(--shell); border: 1px solid var(--sand); border-radius: 18px; padding: 14px 16px; font-size: 15px; line-height: 1.6; margin-top: 16px; }
+  .tip h3 { font-size: 16px; margin-bottom: 4px; }
   .tip ol { margin-left: 20px; }
-  .tip .key { color: #E11D48; font-weight: 700; }
+  .tip .key { color: var(--rose-deep); font-weight: 700; }
 
-  /* ── Settings panel ── */
-  .section { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 14px; }
-  .section h3 { font-size: 16px; font-weight: 750; margin-bottom: 4px; }
-  .help-text { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+  /* ── Sections (settings, sticker design) ── */
+  .section { background: var(--shell); border: 1px solid var(--sand); border-radius: 18px; padding: 16px; margin-bottom: 14px; }
+  .section h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  details.section > summary { font-size: 17px; font-weight: 700; color: var(--ink); }
+  details.section[open] > summary { margin-bottom: 4px; }
+  .help-text { font-size: 14px; color: var(--soft); margin-top: 8px; line-height: 1.5; }
   .sheet-input-row { display: flex; gap: 8px; margin-top: 10px; }
-  .sheet-input-row input { flex: 1; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid #ddd; border-radius: 11px; font-size: 14px; outline: none; }
-  .sheet-input-row input:focus { border-color: var(--ink); }
-  .btn-sm { height: 44px; padding: 0 16px; background: var(--ink); color: #fff; border: none; border-radius: 11px; font-size: 14px; font-weight: 650; cursor: pointer; white-space: nowrap; }
-  .btn-sm:disabled { background: #ccc; cursor: not-allowed; }
-  .btn-sm.ghost { background: #fff; color: var(--ink); border: 1px solid #ccc; }
-  .btn-sm.small { height: 34px; padding: 0 12px; font-size: 13px; }
-  .sheet-other { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--amber-bg); border: 1px solid #fde68a;
-                 color: var(--amber-ink); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-top: 10px; }
+  .sheet-input-row input { flex: 1; min-width: 0; height: 46px; padding: 0 12px; border: 1.5px solid var(--sand); border-radius: 12px; font: inherit; font-size: 14px; color: var(--ink); background: #fff; outline: none; }
+  .sheet-input-row input:focus { border-color: var(--rose); }
+  .btn-sm { height: 46px; padding: 0 16px; background: var(--ink); color: var(--shell); border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .btn-sm:disabled { background: #CDBBB6; cursor: not-allowed; }
+  .btn-sm.ghost { background: #fff; color: var(--ink); border: 1px solid var(--sand); }
+  .btn-sm.small { height: 36px; padding: 0 12px; font-size: 14px; }
+  .sheet-other { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--amber-bg); border: 1px solid #EBD3A8;
+                 color: var(--amber-ink); border-radius: 12px; padding: 8px 12px; font-size: 14px; margin-top: 10px; }
   .sheet-other[hidden] { display: none; }
-  .drop-zone { border: 2px dashed #ccc; border-radius: 12px; padding: 18px; text-align: center; cursor: pointer; color: #888; font-size: 14px; margin-top: 12px; }
-  .drop-zone:hover, .drop-zone.dragover { border-color: var(--ink); background: #fafafa; color: var(--ink); }
-  .drop-zone.has-file { border-color: #22c55e; background: #f0fdf4; color: #166534; }
-  details.instructions { background: var(--amber-bg); border: 1px solid #fde68a; border-radius: 12px; padding: 10px 14px; margin-top: 12px;
-                         font-size: 13px; color: var(--amber-ink); line-height: 1.6; }
-  details > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; font-weight: 650; }
+  .drop-zone { border: 2px dashed var(--sand); border-radius: 14px; padding: 18px; text-align: center; cursor: pointer; color: var(--soft); font-size: 15px; margin-top: 12px; background: #fff; }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--rose); color: var(--ink); }
+  .drop-zone.has-file { border-color: var(--green); background: #EEF7F1; color: var(--green); }
+  details.instructions { background: var(--amber-bg); border: 1px solid #EBD3A8; border-radius: 14px; padding: 10px 14px; margin-top: 12px;
+                         font-size: 14px; color: var(--amber-ink); line-height: 1.6; }
+  details > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; font-weight: 700; }
   details > summary::-webkit-details-marker { display: none; }
   details > summary::before { content: '\25B8'; display: inline-block; transition: transform 0.15s; }
   details[open] > summary::before { transform: rotate(90deg); }
   .instructions p { margin-top: 6px; }
   .instructions .tbl { overflow-x: auto; }
   .instructions table { border-collapse: collapse; margin-top: 6px; min-width: 420px; }
-  .instructions td, .instructions th { border: 1px solid #fde68a; padding: 3px 8px; text-align: left; vertical-align: top; }
-  .settings-title { font-size: 12px; font-weight: 650; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 4px; }
-  .template-selector { display: flex; gap: 10px; margin-top: 8px; }
-  .template-option { flex: 1; min-width: 0; padding: 12px; border: 2px solid #e0e0e0; border-radius: 12px; background: #fff; cursor: pointer; text-align: center; }
-  .template-option.active { border-color: var(--ink); background: #f9f9f9; }
-  .template-option .tpl-name { font-size: 14px; font-weight: 650; }
-  .template-option .tpl-desc { font-size: 12px; color: #888; margin-top: 2px; }
-  .tag { font-size: 12px; font-weight: 500; color: var(--amber-ink); background: var(--amber-bg); border: 1px solid #fde68a; border-radius: 999px; padding: 1px 8px; }
+  .instructions td, .instructions th { border: 1px solid #EBD3A8; padding: 4px 8px; text-align: left; vertical-align: top; }
+  .settings-title { font-size: 15px; font-weight: 700; color: var(--ink); margin: 18px 0 4px; padding-top: 12px; border-top: 1px solid var(--sand); }
+  .template-selector { display: flex; gap: 10px; margin-top: 10px; }
+  .template-option { flex: 1; min-width: 0; padding: 12px; border: 2px solid var(--sand); border-radius: 14px; background: #fff; cursor: pointer; text-align: center; color: var(--ink); }
+  .template-option.active { border-color: var(--rose); background: var(--rose-mist); }
+  .template-option .tpl-name { font-size: 16px; font-weight: 700; }
+  .template-option .tpl-desc { font-size: 13px; color: var(--soft); margin-top: 2px; }
+  .tag { font-size: 13px; font-weight: 400; color: var(--amber-ink); background: var(--amber-bg); border: 1px solid #EBD3A8; border-radius: 999px; padding: 1px 9px; margin-left: 6px; }
   .tag[hidden] { display: none; }
-  .fld { display: grid; grid-template-columns: 140px minmax(0, 1fr) 42px; gap: 10px; align-items: center; padding: 5px 0; }
-  .fld label, .opt-row label { font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-  .fld input[type="checkbox"], .opt-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--ink); flex-shrink: 0; }
-  .fld input[type="range"] { width: 100%; accent-color: var(--ink); }
-  .fld select, .opt-row select { width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; background: #fff; }
+  .fld { display: grid; grid-template-columns: 150px minmax(0, 1fr) 46px; gap: 10px; align-items: center; padding: 6px 0; }
+  .fld label, .opt-row label { font-size: 15px; color: var(--ink); display: flex; align-items: center; gap: 9px; cursor: pointer; line-height: 1.25; }
+  .fld input[type="checkbox"], .opt-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--rose); flex-shrink: 0; }
+  .fld input[type="range"] { width: 100%; accent-color: var(--rose); }
+  .fld select, .opt-row select { width: 100%; min-width: 0; padding: 7px 8px; border: 1px solid var(--sand); border-radius: 10px; font: inherit; font-size: 14px; background: #fff; color: var(--ink); }
   .opt-row select { width: auto; }
-  .slider-value { font-size: 13px; color: #666; text-align: right; }
+  .slider-value { font-size: 14px; color: var(--soft); text-align: right; font-variant-numeric: tabular-nums; }
   .fld.off input[type="range"], .fld.off select, .fld.off .slider-value { opacity: 0.35; }
-  .opt-row { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 4px 0; }
+  .opt-row { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 4px 0; }
   .opt-row.off { opacity: 0.4; }
-  .adv-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+  .adv-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
   .try-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 10px; }
-  .try-grid label { font-size: 13px; color: #555; display: flex; flex-direction: column; gap: 4px; }
-  .try-grid input { width: 100%; height: 42px; padding: 0 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; }
-  #tryCanvas { display: block; width: 100%; max-width: 420px; margin: 12px auto 0; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; }
+  .try-grid label { font-size: 14px; color: var(--soft); display: flex; flex-direction: column; gap: 4px; }
+  .try-grid input { width: 100%; height: 44px; padding: 0 12px; border: 1.5px solid var(--sand); border-radius: 12px; font: inherit; font-size: 16px; color: var(--ink); background: #fff; outline: none; }
+  .try-grid input:focus { border-color: var(--rose); }
+  #tryCanvas { display: block; width: 100%; max-width: 420px; margin: 12px auto 0; border: 1px solid #D9C9C3; border-radius: 4px; background: #fff; }
 
-  .barcode-specs { margin-top: 8px; font-size: 12px; color: #555; line-height: 1.7; background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 8px 12px; }
-  .barcode-specs .spec-title { font-weight: 650; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; margin-bottom: 4px; }
+  .barcode-specs { margin-top: 8px; font-size: 13px; color: var(--soft); line-height: 1.7; background: #fff; border: 1px solid var(--sand); border-radius: 12px; padding: 8px 12px; }
+  .barcode-specs .spec-title { font-weight: 700; color: var(--ink); font-size: 14px; margin-bottom: 4px; }
   .barcode-specs .spec-row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
-  .barcode-specs .val { font-variant-numeric: tabular-nums; font-weight: 650; color: #1a1a1a; text-align: right; }
-  .barcode-specs .ok { color: #16a34a; }
+  .barcode-specs .val { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); text-align: right; }
+  .barcode-specs .ok { color: var(--green); }
   .barcode-specs .bad { color: var(--red); }
   .barcode-specs .soft { color: var(--amber-ink); }
 
+  @media (max-width: 380px) {
+    .fld { grid-template-columns: 120px minmax(0, 1fr) 42px; }
+  }
   @media (min-width: 700px) {
     .try-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    .size:active { transform: none; }
   }
 </style>
 </head>
@@ -206,7 +241,7 @@
 <header class="top">
   <div class="wrap">
     <div class="top-row">
-      <h1>Display Stickers<small>Machino &middot; NIIMBOT B1 &middot; 50 &times; 30 mm</small></h1>
+      <h1>Display Stickers<small>Price stickers for the NIIMBOT B1</small></h1>
       <button type="button" class="icon-btn" id="settingsBtn" aria-label="Settings" onclick="openPanel('settingsPanel')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -241,6 +276,69 @@
     <button type="button" class="head-btn right" id="clearBtn" onclick="clearPrintList()">Clear</button>
   </div></div>
   <div class="panel-body"><div class="wrap">
+    <details class="section" id="stickerSettings">
+      <summary>Sticker settings <span class="tag" id="customTag" hidden>changed</span></summary>
+      <p class="help-text" style="margin-top:2px">Usually nothing to change. The stickers below update as you change things. This phone remembers your choice.</p>
+      <div class="template-selector">
+        <button type="button" class="template-option active" id="tplBoxed" onclick="selectTemplate('boxed')">
+          <div class="tpl-name">Standard</div><div class="tpl-desc">Name, price and code</div>
+        </button>
+        <button type="button" class="template-option" id="tplBarcode" onclick="selectTemplate('barcode')">
+          <div class="tpl-name">Code only</div><div class="tpl-desc">Just the barcode or QR, biggest</div>
+        </button>
+      </div>
+
+      <div class="settings-title">Name</div>
+      <div class="fld">
+        <label><input type="checkbox" id="showShoe" checked onchange="onSettingsChange()"> Show name</label>
+        <input type="range" id="shoePt" min="7" max="14" step="0.5" value="11" aria-label="Name size" oninput="onSettingsChange()">
+        <span class="slider-value" id="shoePtVal">11pt</span>
+      </div>
+      <div class="opt-row" data-group="name">
+        <label><input type="checkbox" id="shoeBold" checked onchange="onSettingsChange()"> Bold</label>
+        <label><input type="checkbox" id="shoeCaps" onchange="onSettingsChange()"> ALL CAPITALS</label>
+        <label><input type="checkbox" id="showSize" onchange="onSettingsChange()"> Add the size ("&hellip; - 36")</label>
+        <label><input type="checkbox" id="autoFit" checked onchange="onSettingsChange()"> Shrink long names to fit</label>
+      </div>
+
+      <div class="settings-title">Price</div>
+      <div class="fld">
+        <label><input type="checkbox" id="showPrice" checked onchange="onSettingsChange()"> Show price</label>
+        <input type="range" id="pricePt" min="6.5" max="12" step="0.5" value="8" aria-label="Price size" oninput="onSettingsChange()">
+        <span class="slider-value" id="pricePtVal">8pt</span>
+      </div>
+      <div class="opt-row" data-group="price">
+        <label><input type="checkbox" id="priceBold" onchange="onSettingsChange()"> Bold</label>
+        <label>Position
+          <select id="pricePos" onchange="onSettingsChange()">
+            <option value="bottom">Bottom right</option>
+            <option value="top">Top right</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="settings-title">Code</div>
+      <div class="opt-row">
+        <label><input type="checkbox" id="showDivider" checked onchange="onSettingsChange()"> Line above the code</label>
+      </div>
+      <div class="fld">
+        <label><input type="checkbox" id="showSkuText" onchange="onSettingsChange()"> SKU under barcode</label>
+        <input type="range" id="skuPt" min="6" max="10" step="0.5" value="7" aria-label="SKU text size" oninput="onSettingsChange()">
+        <span class="slider-value" id="skuPtVal">7pt</span>
+      </div>
+      <div class="fld">
+        <label for="skuFont" style="padding-left:26px">SKU font</label>
+        <select id="skuFont" onchange="onSettingsChange()">
+          <option value="helvetica">Helvetica</option>
+          <option value="courier">Courier (typewriter)</option>
+        </select>
+        <span></span>
+      </div>
+      <p class="help-text">NEW SKUs get a barcode. OLD SKUs (with letters) get a QR code with the SKU written next to it. Both scan.</p>
+      <div class="adv-actions">
+        <button type="button" class="btn-sm ghost" onclick="resetSettings()">Reset to default</button>
+      </div>
+    </details>
     <div id="printItems"></div>
     <p class="fix-note" id="fixNote"></p>
     <button type="button" class="btn" id="generateBtn" onclick="downloadPdf()">Download PDF</button>
@@ -303,67 +401,8 @@
     </div>
 
     <div class="section">
-      <h3>Sticker design <span class="tag" id="customTag" hidden>custom settings in use</span></h3>
-      <p class="help-text" style="margin-top:2px">Usually you do not need to change anything here. This phone remembers your choice.</p>
-      <div class="template-selector">
-        <button type="button" class="template-option active" id="tplBoxed" onclick="selectTemplate('boxed')">
-          <div class="tpl-name">Standard</div><div class="tpl-desc">Name, price and code</div>
-        </button>
-        <button type="button" class="template-option" id="tplBarcode" onclick="selectTemplate('barcode')">
-          <div class="tpl-name">Code only</div><div class="tpl-desc">Just the barcode or QR, biggest</div>
-        </button>
-      </div>
-
-      <div class="settings-title">Name</div>
-      <div class="fld">
-        <label><input type="checkbox" id="showShoe" checked onchange="onSettingsChange()"> Show name</label>
-        <input type="range" id="shoePt" min="7" max="14" step="0.5" value="11" aria-label="Name size" oninput="onSettingsChange()">
-        <span class="slider-value" id="shoePtVal">11pt</span>
-      </div>
-      <div class="opt-row" data-group="name">
-        <label><input type="checkbox" id="shoeBold" checked onchange="onSettingsChange()"> Bold</label>
-        <label><input type="checkbox" id="shoeCaps" onchange="onSettingsChange()"> ALL CAPITALS</label>
-        <label><input type="checkbox" id="showSize" onchange="onSettingsChange()"> Add the size ("&hellip; - 36")</label>
-        <label><input type="checkbox" id="autoFit" checked onchange="onSettingsChange()"> Shrink long names to fit</label>
-      </div>
-
-      <div class="settings-title">Price</div>
-      <div class="fld">
-        <label><input type="checkbox" id="showPrice" checked onchange="onSettingsChange()"> Show price</label>
-        <input type="range" id="pricePt" min="6.5" max="12" step="0.5" value="8" aria-label="Price size" oninput="onSettingsChange()">
-        <span class="slider-value" id="pricePtVal">8pt</span>
-      </div>
-      <div class="opt-row" data-group="price">
-        <label><input type="checkbox" id="priceBold" onchange="onSettingsChange()"> Bold</label>
-        <label>Position
-          <select id="pricePos" onchange="onSettingsChange()">
-            <option value="bottom">Bottom right</option>
-            <option value="top">Top right</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="settings-title">Code</div>
-      <div class="opt-row">
-        <label><input type="checkbox" id="showDivider" checked onchange="onSettingsChange()"> Line above the code</label>
-      </div>
-      <div class="fld">
-        <label><input type="checkbox" id="showSkuText" onchange="onSettingsChange()"> SKU under barcode</label>
-        <input type="range" id="skuPt" min="6" max="10" step="0.5" value="7" aria-label="SKU text size" oninput="onSettingsChange()">
-        <span class="slider-value" id="skuPtVal">7pt</span>
-      </div>
-      <div class="fld">
-        <label for="skuFont" style="padding-left:26px">SKU font</label>
-        <select id="skuFont" onchange="onSettingsChange()">
-          <option value="helvetica">Helvetica</option>
-          <option value="courier">Courier (typewriter)</option>
-        </select>
-        <span></span>
-      </div>
-      <p class="help-text">NEW SKUs get a barcode. OLD SKUs (with letters) get a QR code with the SKU written next to it. Both scan.</p>
-      <div class="adv-actions">
-        <button type="button" class="btn-sm ghost" onclick="resetSettings()">Reset to default</button>
-      </div>
+      <h3>Sticker design</h3>
+      <p class="help-text" style="margin-top:2px">Change the sticker on the Print screen: tap <strong>Print</strong>, then <strong>Sticker settings</strong>. You see the stickers change as you go.</p>
     </div>
 
     <div class="section">
@@ -612,6 +651,7 @@ function checkRow(r, noCode) {
   var m = r.code.match(/^(.+)-(\d{1,3})$/);
   r.sizeFromSku = m ? m[2] : '';
   if (!r.code) r.errors.push('SKU is empty');
+  else if (/^\d+(\.\d+)?E\+\d+$/i.test(r.code)) r.errors.push('Google Sheets turned this SKU into a number ("' + r.code + '"), so the real SKU is lost. Import the sheet again with "Convert text to numbers, dates and formulas" OFF, or set the SKU column to Format > Number > Plain text and type the SKU again');
   else if (/\s/.test(r.code)) r.errors.push('SKU "' + r.code + '" has a space in it');
   else if (!/^[A-Za-z0-9-]+$/.test(r.code)) r.errors.push('SKU "' + r.code + '" has a character that is not a letter, number or "-"');
   else if (r.code.length < 3 || r.code.length > 40) r.errors.push('SKU "' + r.code + '" must be 3 to 40 characters long');
@@ -1522,8 +1562,8 @@ function loadData(results, source) {
   if (!designs.length) {
     setSheetStatus('The sheet has no shoes yet. Add one row per shoe in the Google Sheet, wait 1–2 minutes, then press Load (⚙).', 'error');
   } else {
-    setSheetStatus('✓ ' + plural(designs.length, 'shoe', 'shoes') + ' · ' + plural(sizes, 'size', 'sizes') + ' loaded' +
-      (bad ? ' · ' + plural(bad, 'row needs', 'rows need') + ' fixing in the sheet' : ''), bad ? '' : 'success');
+    setSheetStatus('✓ ' + plural(designs.length, 'shoe', 'shoes') + ' and ' + plural(sizes, 'size', 'sizes') + ' ready' +
+      (bad ? '. ' + plural(bad, 'row needs', 'rows need') + ' fixing in the sheet (tap Check sheet)' : ''), bad ? '' : 'success');
   }
   loadPrintList();
   refreshUI();
@@ -1605,7 +1645,7 @@ function renderBar() {
   printList.forEach(function(p) { shoes[skuIndex[p.sku].d.sheetRow] = 1; });
   var nShoes = Object.keys(shoes).length;
   document.getElementById('barCount').innerHTML = n
-    ? escHtml(plural(n, 'sticker', 'stickers')) + '<small>' + escHtml(plural(nShoes, 'shoe', 'shoes')) + ' · tap Print to check and download</small>'
+    ? escHtml(plural(n, 'sticker', 'stickers')) + '<small>' + 'from ' + escHtml(plural(nShoes, 'shoe', 'shoes')) + '. Tap Print to check them.</small>'
     : 'No stickers yet<small>Tap a size to add a sticker</small>';
   document.getElementById('openPrint').disabled = !n;
 }
@@ -1722,7 +1762,7 @@ function renderPrintList() {
     row.className = 'item-row';
     row.innerHTML =
       '<div class="item-info"><b>' + escHtml(d.shoe || '(no name)') + '</b><span>' +
-        escHtml((r.size ? 'Size ' + r.size + ' · ' : '') + kind + ' · ' + r.code) + '</span></div>' +
+        escHtml((r.size ? 'Size ' + r.size + ', ' : '') + kind) + '<br>' + escHtml(r.code) + '</span></div>' +
       '<div class="stepper"><button type="button" aria-label="One less" data-act="minus"' + (p.copies <= 1 ? ' disabled' : '') + '>&minus;</button>' +
         '<output aria-label="Copies">' + p.copies + '</output>' +
         '<button type="button" aria-label="One more" data-act="plus"' + (p.copies >= MAX_COPIES ? ' disabled' : '') + '>+</button></div>' +
@@ -1766,7 +1806,7 @@ function renderPrintTotals() {
   document.getElementById('printCount').textContent = printList.length ? '(' + totalCopies() + ')' : '';
   var btn = document.getElementById('generateBtn');
   btn.disabled = !n;
-  btn.textContent = n ? 'Download PDF · ' + plural(n, 'sticker', 'stickers') : 'Download PDF';
+  btn.textContent = n ? 'Download PDF (' + plural(n, 'sticker', 'stickers') + ')' : 'Download PDF';
   document.getElementById('fixNote').textContent = bad ? plural(bad, 'sticker is', 'stickers are') + ' left out until the sheet is fixed (red).' : '';
 }
 
