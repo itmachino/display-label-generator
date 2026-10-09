@@ -224,6 +224,23 @@
   .barcode-specs .bad { color: var(--red); }
   .barcode-specs .soft { color: var(--amber-ink); }
 
+  .print-actions { position: sticky; bottom: 0; z-index: 2; background: var(--blush); border-top: 1px solid var(--sand);
+                   padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 20px rgba(59, 42, 46, 0.06); }
+  .print-actions .status { margin-top: 8px; }
+  .print-actions .status:empty { display: none; }
+  details.pics { margin-top: 10px; }
+  details.pics summary { font-size: 15px; color: var(--rose-deep); }
+  details.pics figure { margin: 12px 0 0; }
+  details.pics img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--sand); background: #fff; }
+  details.pics figcaption { font-size: 14px; color: var(--soft); margin-top: 4px; }
+  .size.match { border-color: var(--rose); box-shadow: 0 0 0 3px var(--rose-mist); }
+  .toast { position: fixed; left: 16px; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 25; max-width: 728px; margin: 0 auto;
+           display: flex; align-items: center; gap: 12px; background: var(--ink); color: var(--shell); border-radius: 14px; padding: 12px 14px 12px 16px;
+           font-size: 15px; box-shadow: 0 8px 24px rgba(59, 42, 46, 0.25); }
+  .toast[hidden] { display: none; }
+  .toast span { flex: 1; min-width: 0; }
+  .toast button { flex: 0 0 auto; border: none; background: none; color: #F3C9D3; font-weight: 700; font-size: 15px; padding: 6px 8px; cursor: pointer; border-radius: 8px; }
+
   @media (max-width: 380px) {
     .fld { grid-template-columns: 120px minmax(0, 1fr) 42px; }
   }
@@ -268,6 +285,11 @@
   </div>
 </div>
 
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>
+  <span id="toastText"></span>
+  <button type="button" id="toastUndo">Undo</button>
+</div>
+
 <!-- Screen 2: the print list -->
 <section class="panel" id="printPanel" hidden aria-label="Your stickers">
   <div class="panel-head"><div class="wrap">
@@ -297,8 +319,10 @@
       <div class="opt-row" data-group="name">
         <label><input type="checkbox" id="shoeBold" checked onchange="onSettingsChange()"> Bold</label>
         <label><input type="checkbox" id="shoeCaps" onchange="onSettingsChange()"> ALL CAPITALS</label>
-        <label><input type="checkbox" id="showSize" onchange="onSettingsChange()"> Add the size ("&hellip; - 36")</label>
         <label><input type="checkbox" id="autoFit" checked onchange="onSettingsChange()"> Shrink long names to fit</label>
+      </div>
+      <div class="opt-row">
+        <label><input type="checkbox" id="showSize" onchange="onSettingsChange()"> Show size (adds &ldquo;- 37&rdquo; after the name)</label>
       </div>
 
       <div class="settings-title">Price</div>
@@ -340,21 +364,32 @@
       </div>
     </details>
     <div id="printItems"></div>
-    <p class="fix-note" id="fixNote"></p>
-    <button type="button" class="btn" id="generateBtn" onclick="downloadPdf()">Download PDF</button>
-    <div class="progress-bar-container" id="progressContainer"><div class="progress-bar" id="progressBar"></div></div>
-    <div class="status" id="status"></div>
     <button type="button" class="btn ghost" id="doneBtn" onclick="clearPrintList(true)" hidden>Printed? Clear the list</button>
     <div class="tip">
       <h3>Then print in the NIIMBOT app</h3>
       <ol>
-        <li>New label (<strong>T50*30</strong>) &rarr; <strong>Add</strong> &rarr; <strong>PDF Print</strong> &rarr; pick the PDF.</li>
+        <li>Make a new label. It must say <strong>T50*30</strong>. Tap <strong>Create with this label</strong>.</li>
+        <li>Tap <strong>Add</strong> at the bottom, then <strong>PDF Print</strong>, then pick the PDF.</li>
         <li>Do not move the blue frame. Tap <strong>Add</strong>.</li>
-        <li><span class="key">Delete the &ldquo;Double-click to Edit&rdquo; box.</span></li>
-        <li>Print: density <strong>5</strong>, copies <strong>1</strong>.</li>
+        <li><span class="key">Tap the &ldquo;Double-click to Edit&rdquo; box and delete it.</span> If you forget, it prints on the sticker.</li>
+        <li>Tap <strong>Print</strong>. Density <strong>5</strong>, copies <strong>1</strong>. Tap <strong>Print</strong>.</li>
         <li>Scan one sticker with <strong>Stock check</strong> before you stick them all.</li>
       </ol>
+      <details class="pics">
+        <summary>Show pictures for each step</summary>
+        <figure><img src="img/niimbot/1-new-label.jpg" alt="NIIMBOT: label T50*30, Create with this label" loading="lazy" width="900" height="642"><figcaption>1. Check the label says T50*30, tap Create with this label.</figcaption></figure>
+        <figure><img src="img/niimbot/2-pdf-print.jpg" alt="NIIMBOT: Add tab, PDF Print" loading="lazy" width="900" height="676"><figcaption>2. Tap Add, then PDF Print. Swipe the tools left if you cannot see it.</figcaption></figure>
+        <figure><img src="img/niimbot/3-tap-add.jpg" alt="NIIMBOT: keep the blue frame, tap Add" loading="lazy" width="900" height="555"><figcaption>3. Leave the blue frame where it is. Tap Add.</figcaption></figure>
+        <figure><img src="img/niimbot/4-delete-box.jpg" alt="NIIMBOT: delete the Double-click to Edit box" loading="lazy" width="900" height="641"><figcaption>4. Tap the extra text, then the bin. It must be gone.</figcaption></figure>
+        <figure><img src="img/niimbot/5-print.jpg" alt="NIIMBOT: print settings" loading="lazy" width="900" height="606"><figcaption>5. All pages, copies 1, density 5. Tap Print.</figcaption></figure>
+      </details>
     </div>
+  </div></div>
+  <div class="print-actions"><div class="wrap">
+    <p class="fix-note" id="fixNote"></p>
+    <button type="button" class="btn" id="generateBtn" onclick="downloadPdf()">Download PDF</button>
+    <div class="progress-bar-container" id="progressContainer"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="status" id="status"></div>
   </div></div>
 </section>
 
@@ -1558,12 +1593,12 @@ function loadData(results, source) {
   });
 
   var sizes = designs.reduce(function(n, d) { return n + stickerSkus(d).length; }, 0);
-  var bad = designs.filter(function(d) { return d.errors.length; }).length;
+  var bad = designs.filter(needsCheck).length;   // same count as the "Check sheet" button
   if (!designs.length) {
     setSheetStatus('The sheet has no shoes yet. Add one row per shoe in the Google Sheet, wait 1–2 minutes, then press Load (⚙).', 'error');
   } else {
     setSheetStatus('✓ ' + plural(designs.length, 'shoe', 'shoes') + ' and ' + plural(sizes, 'size', 'sizes') + ' ready' +
-      (bad ? '. ' + plural(bad, 'row needs', 'rows need') + ' fixing in the sheet (tap Check sheet)' : ''), bad ? '' : 'success');
+      (bad ? '. ' + plural(bad, 'shoe needs', 'shoes need') + ' a check in the sheet' : ''), bad ? '' : 'success');
   }
   loadPrintList();
   refreshUI();
@@ -1593,6 +1628,7 @@ function stickerFor(sku) {
     checkRow(r);
     r.design = d;
     r.size = info.size;
+    if (info.size == null) r.sizeFromSku = '';   // bags etc.: "-1" at the end is not a size
     stickerCache[sku] = r;
   }
   return stickerCache[sku];
@@ -1619,7 +1655,7 @@ function listIndex(sku) {
   return -1;
 }
 
-function toggleSize(sku, btn) {
+function toggleSize(sku, btn, quiet) {
   var i = listIndex(sku);
   if (i === -1) printList.push({ sku: sku, copies: 1 });
   else printList.splice(i, 1);
@@ -1635,6 +1671,24 @@ function toggleSize(sku, btn) {
   renderFilters();
   renderBar();
   if (activeType === 'Picked' && !printList.length) { activeType = 'All'; renderFilters(); renderList(); }
+  if (!quiet) {
+    var info = skuIndex[sku];
+    var what = (info.d.shoe || sku) + (info.size ? ', size ' + info.size : '');
+    showToast((i === -1 ? 'Added: ' : 'Removed: ') + what, function() {
+      toggleSize(sku, document.querySelector('#list button[data-sku="' + sku.replace(/"/g, '\\"') + '"]'), true);
+    });
+  }
+}
+
+// A short message at the bottom ("Added: ... size 37") with Undo. Goes away by itself.
+var toastTimer = null;
+function showToast(text, undo) {
+  var box = document.getElementById('toast');
+  document.getElementById('toastText').textContent = text;
+  document.getElementById('toastUndo').onclick = function() { box.hidden = true; clearTimeout(toastTimer); undo(); };
+  box.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { box.hidden = true; }, 3500);
 }
 
 function totalCopies() { return printList.reduce(function(n, p) { return n + p.copies; }, 0); }
@@ -1678,23 +1732,27 @@ function renderFilters() {
 
 function renderList() {
   var words = searchWords();
+  // A 2-digit word is a size: "bliss 38" = Bliss shoes that have size 38 (and 38 is marked).
+  var sizeWords = words.filter(function(w) { return /^\d{2}$/.test(w); }).map(function(w) { return String(+w); });
+  var textWords = words.filter(function(w) { return !/^\d{2}$/.test(w); });
   var shown = designs.filter(function(d) {
     if (activeType === 'Picked') { if (!stickerSkus(d).some(function(s) { return listIndex(s) !== -1; })) return false; }
     else if (activeType === 'Check') { if (!needsCheck(d)) return false; }
     else if (activeType !== 'All' && d.type !== activeType) return false;
-    return words.every(function(w) { return d.find.indexOf(w) !== -1; });
+    if (sizeWords.length && (d.single != null || !sizeWords.every(function(s) { return d.sizes.indexOf(s) !== -1; }))) return false;
+    return textWords.every(function(w) { return d.find.indexOf(w) !== -1; });
   });
-  var html = shown.slice(0, LIST_MAX).map(cardHtml).join('');
+  var html = shown.slice(0, LIST_MAX).map(function(d) { return cardHtml(d, sizeWords); }).join('');
   if (shown.length > LIST_MAX) html += '<p class="more-note">Showing ' + LIST_MAX + ' of ' + shown.length + '. Type in the search box to find the others.</p>';
   document.getElementById('list').innerHTML = html;
   var empty = document.getElementById('emptyNote');
   empty.hidden = shown.length > 0;
   empty.textContent = !designs.length ? 'No shoes yet. The list loads from the Google Sheet.'
-    : words.length ? 'No shoes match "' + words.join(' ') + '". Try another word, or tap All.'
+    : words.length ? 'No shoes match "' + words.join(' ') + '"' + (sizeWords.length ? ' (with size ' + sizeWords.join(', ') + ')' : '') + '. Try another word, or tap All.'
     : 'No shoes here. Tap All.';
 }
 
-function cardHtml(d) {
+function cardHtml(d, marked) {
   var skus = stickerSkus(d);
   var bad = d.errors.length > 0;
   var anyOn = false;
@@ -1702,12 +1760,18 @@ function cardHtml(d) {
     var on = listIndex(sku) !== -1;
     if (on) anyOn = true;
     var label = d.single != null ? (on ? '✓ Added' : '+ Add') : d.sizes[i];
-    return '<button type="button" class="size' + (d.single != null ? ' one' : '') + (on ? ' on' : '') + '" data-sku="' + escHtml(sku) +
+    var mark = marked && d.single == null && marked.indexOf(d.sizes[i]) !== -1;
+    return '<button type="button" class="size' + (d.single != null ? ' one' : '') + (on ? ' on' : '') + (mark ? ' match' : '') + '" data-sku="' + escHtml(sku) +
       '" aria-pressed="' + on + '"' + (bad ? ' disabled' : '') + ' aria-label="' + escHtml(d.shoe + (d.single != null ? '' : ', size ' + d.sizes[i])) + '">' + escHtml(label) + '</button>';
   }).join('');
   var notes = '';
-  if (bad) notes += '<div class="note bad"><p><strong>Fix in the sheet (row ' + d.rows.join(', ') + '):</strong></p>' + d.errors.map(function(e) { return '<p>' + escHtml(e) + '</p>'; }).join('') + '</div>';
-  if (d.warnings.length) notes += '<div class="note warn">' + d.warnings.map(function(e) { return '<p>' + escHtml(e) + '</p>'; }).join('') + '</div>';
+  if (activeType === 'Check') {
+    // Full messages only here, for whoever looks after the sheet.
+    if (bad) notes += '<div class="note bad"><p><strong>Fix in the sheet (row ' + d.rows.join(', ') + '):</strong></p>' + d.errors.map(function(e) { return '<p>' + escHtml(e) + '</p>'; }).join('') + '</div>';
+    if (d.warnings.length) notes += '<div class="note warn"><p><strong>Check in the sheet (row ' + d.rows.join(', ') + '):</strong></p>' + d.warnings.map(function(e) { return '<p>' + escHtml(e) + '</p>'; }).join('') + '</div>';
+  } else if (bad) {
+    notes += '<div class="note bad"><p>Can&rsquo;t print yet. Please tell the manager.</p></div>';
+  }
   return '<div class="card' + (anyOn ? ' picked' : '') + '">' +
     '<div class="card-top"><div class="name">' + escHtml(d.shoe || '(no name)') + '</div><div class="price">' + escHtml(d.priceText || '') + '</div></div>' +
     '<div class="meta">' + escHtml(d.single != null ? d.single : d.base + '-…') + '</div>' +

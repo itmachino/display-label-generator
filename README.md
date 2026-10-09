@@ -76,11 +76,11 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 
 | Part | What it does |
 |---|---|
-| **Search** | Type part of a shoe name or SKU. The list filters as you type. |
+| **Search** | Type part of a shoe name or SKU. The list filters as you type. Add a size to find shoes that have it: `bliss 38` (size 38 is circled). |
 | **Filter buttons** | All, Kids, Wedges, Mules, Sandals, Heels, Flats, Bags, Others (from the shoe name). **In my list** = shoes in the print list. **Check sheet** = rows with a red or yellow message. |
-| **Shoe cards** | Name, price, SKU and a button for every size. Tap to add / remove. Red message = fix that row in the sheet (sizes cannot be picked). |
+| **Shoe cards** | Name, price, SKU and a button for every size. Tap to add / remove (a message shows "Added …" with **Undo**). A row with a sheet problem says "Can't print yet"; the details are under **Check sheet**. |
 | **Bottom bar** | How many stickers are in the print list, and **Print ▸**. |
-| **Print list** | Every sticker exactly as it prints, copies **− / +**, remove **✕**, **Code details** (bar width, QR square size, read-back check), **Download PDF**, the NIIMBOT steps. |
+| **Print list** | Every sticker exactly as it prints, copies **− / +**, remove **✕**, **Code details**, **Sticker settings** (name, **Show size**, **Show price**, code options, Reset to default), **Download PDF** (always visible at the bottom), the NIIMBOT steps with pictures. |
 | **⚙ Settings** | Sheet link (**Load**, **Use the usual sheet**, open a CSV file), **Sticker design** (Standard / Code only; name, price and code options; **Reset to default**), **Try a sticker** (any name, price and SKU, not printed). Remembered on this phone. |
 
 ## What the website checks
@@ -122,6 +122,7 @@ Built from two earlier tools: the [Photoshoot Label Generator](https://itmachino
 |---|---|
 | `README.md` | This page. Start here. |
 | `index.html` | The whole website, in one file. |
+| `img/niimbot/` | The 5 NIIMBOT step pictures shown on the Print screen. |
 | `sheet-template.csv` | The columns the Google Sheet must have (SHOE, PRICE, SKU, SIZES). |
 | `test-data/test-stickers.csv` | 6 test stickers, for the print test. |
 | `test-data/test-stickers.pdf` | Those 6 stickers, ready to print. |
