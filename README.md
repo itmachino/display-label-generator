@@ -127,9 +127,23 @@ Built from two earlier tools: the [Photoshoot Label Generator](https://itmachino
 | `test-data/test-stickers.pdf` | Those 6 stickers, ready to print. |
 | `test-data/bad-rows.csv` | Rows with mistakes, to check the website catches them. |
 | `test-data/qr-stickers.csv` | 4 long SKUs (QR code) and 1 short SKU (barcode), for the QR print test. |
+| `tools/shopify-export-to-sheet.py` | Turns a Shopify product export into the sticker sheet with all sizes (see below). |
 | `test-data/sizes-test.csv` | SIZES examples and mistakes (`34.5`, `abc`, SKU without size, a bag), to check the messages. |
 
 **Test stickers are for testing only.** Their prices are examples. Do not put them on shoes.
+
+## Make the sheet from Shopify (all names, prices, SKUs and sizes)
+
+1. Shopify admin → **Products** → **Export** → **All products** → **CSV for Excel**.
+2. Run (PowerShell, in this folder):
+   ```powershell
+   python tools/shopify-export-to-sheet.py products_export_1.csv sticker-sheet.csv
+   ```
+   Add `--only old-sheet.csv` to keep only the shoes in that sheet (e.g. the display shoes).
+3. In the Google Sheet: **File → Import → Upload** the new file → **Replace current sheet**. Read the **NOTE** column, then you can delete it.
+
+Sizes come from the end of each SKU (Shopify's size "34.5" has the SKU `…-34`), prices are Shopify's current selling price,
+products without sizes (bags, candles, charms) get one sticker each. Keep the export file off GitHub (it is company data).
 
 ## Print test (do this before using it for real)
 

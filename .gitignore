@@ -5,3 +5,6 @@ Thumbs.db
 
 # Staff guide (SOP) and its pictures: kept on this PC / Google Drive only, not on GitHub
 docs/
+
+# Shopify exports (company data)
+products_export*.csv

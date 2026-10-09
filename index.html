@@ -1538,7 +1538,9 @@ function checkDesign(d) {
   checkRow(probe, true);   // true: the barcode is made later, when a size is picked
   d.priceText = probe.priceText;
   d.errors = d.errors.concat(probe.errors);
-  d.warnings = probe.warnings.concat(d.warnings);
+  // Bags and accessories (no sizes) have all kinds of SKUs: only shoe SKUs get the style check.
+  var own = d.single != null ? probe.warnings.filter(function(w) { return !/usual SKU/.test(w); }) : probe.warnings;
+  d.warnings = own.concat(d.warnings);
   d.find = (d.shoe + ' ' + (d.base || d.single || '') + ' ' + d.priceText + ' ' + d.type).toLowerCase();
 }
 
