@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Display Label Generator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f4f5f7">
+<title>Display Stickers · Machino</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='4' y='14' width='56' height='36' rx='4' fill='%23fff' stroke='%23222' stroke-width='3'/><rect x='11' y='20' width='26' height='4' fill='%23222'/><rect x='40' y='20' width='13' height='5' fill='%23222'/><g fill='%23222'><rect x='11' y='30' width='2' height='14'/><rect x='15' y='30' width='4' height='14'/><rect x='21' y='30' width='2' height='14'/><rect x='25' y='30' width='6' height='14'/><rect x='33' y='30' width='2' height='14'/><rect x='37' y='30' width='4' height='14'/><rect x='43' y='30' width='2' height='14'/><rect x='47' y='30' width='6' height='14'/></g></svg>">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -13,396 +14,372 @@
 <!-- Barcode reader: used only to double-check every barcode before it is printed. -->
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <style>
+  :root {
+    --ink: #111; --muted: #6b7280; --line: #e5e7eb; --bg: #f4f5f7; --card: #fff;
+    --red: #dc2626; --red-bg: #fef2f2; --red-ink: #991b1b; --amber-bg: #fffbeb; --amber-ink: #92400e; --green: #15803d;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #f5f5f5; color: #1a1a1a; min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--ink); min-height: 100vh; padding-bottom: 96px;
   }
-  .container { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
-  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
-  .subtitle { color: #666; font-size: 15px; margin-bottom: 40px; }
+  body.locked { overflow: hidden; }
+  button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
 
-  .step {
-    background: #fff; border: 1px solid #e0e0e0;
-    border-radius: 12px; padding: 24px; margin-bottom: 20px;
-  }
-  .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-  .step-number {
-    width: 32px; height: 32px; background: #1a1a1a; color: #fff;
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 14px; flex-shrink: 0;
-  }
-  .step-title { font-size: 16px; font-weight: 600; }
+  /* ── Top: title, search, filters ── */
+  .top { position: sticky; top: 0; z-index: 10; background: rgba(244, 245, 247, 0.96);
+         backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding: 12px 0 6px; }
+  .top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .top h1 { font-size: 20px; font-weight: 750; letter-spacing: -0.2px; line-height: 1.15; }
+  .top h1 small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .icon-btn { width: 44px; height: 44px; flex: 0 0 auto; border-radius: 12px; border: 1px solid var(--line); background: #fff;
+              cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .icon-btn svg { width: 22px; height: 22px; }
+  .search { position: relative; margin-top: 10px; }
+  .search input { width: 100%; height: 48px; border: 1px solid var(--line); border-radius: 14px; padding: 0 46px 0 44px;
+                  font-size: 16px; background: #fff; outline: none; -webkit-appearance: none; appearance: none; }
+  .search input:focus { border-color: var(--ink); }
+  .search input::-webkit-search-cancel-button { display: none; }
+  .search .glass { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--muted); pointer-events: none; }
+  .search .clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border: none;
+                   background: none; font-size: 20px; color: var(--muted); cursor: pointer; border-radius: 10px; }
+  .search .clear[hidden] { display: none; }
+  .filters { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 4px; scrollbar-width: none; }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff;
+          font-size: 14px; font-weight: 650; color: #374151; cursor: pointer; white-space: nowrap; }
+  .chip .n { color: var(--muted); font-weight: 500; margin-left: 3px; }
+  .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .chip.on .n { color: #d1d5db; }
+  .chip.check { color: var(--red-ink); border-color: #fecaca; background: var(--red-bg); }
+  .chip.check.on { background: var(--red); border-color: var(--red); color: #fff; }
+  .load-line { font-size: 13px; color: var(--muted); padding: 4px 0 2px; min-height: 22px; }
+  .load-line.error { color: var(--red); font-weight: 650; }
+  .load-line.success { color: var(--green); }
 
-  .sheet-input-row { display: flex; gap: 10px; margin-bottom: 8px; }
-  .sheet-input-row input {
-    flex: 1; min-width: 0; padding: 12px 14px; border: 1px solid #ddd;
-    border-radius: 8px; font-size: 14px; outline: none;
-  }
-  .sheet-input-row input:focus { border-color: #1a1a1a; }
-  .sheet-status { font-size: 15px; font-weight: 600; margin: 4px 0 8px; color: #666; }
-  .sheet-status.error { color: #dc2626; }
-  .sheet-status.success { color: #16a34a; }
-  .sheet-other {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
-    border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 8px;
-  }
-  .sheet-other[hidden] { display: none; }
+  /* ── Shoe list ── */
+  .list { padding: 12px 0 24px; display: grid; gap: 10px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px 14px 12px; }
+  .card.picked { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  .card-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .card .name { font-size: 16px; font-weight: 700; line-height: 1.3; }
+  .card .price { font-size: 15px; font-weight: 650; white-space: nowrap; padding-top: 1px; }
+  .card .meta { font-size: 12px; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; word-break: break-all; }
+  .sizes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .size { min-width: 50px; height: 46px; padding: 0 10px; border-radius: 13px; border: 1.5px solid var(--line); background: #fff;
+          font-size: 16px; font-weight: 650; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .size:active { transform: scale(0.96); }
+  .size.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .size.one { padding: 0 18px; }
+  .size:disabled { opacity: 0.35; cursor: not-allowed; }
+  .note { font-size: 13px; margin-top: 10px; line-height: 1.45; padding: 8px 11px; border-radius: 11px; }
+  .note.bad { background: var(--red-bg); color: var(--red-ink); }
+  .note.warn { background: var(--amber-bg); color: var(--amber-ink); }
+  .note p + p { margin-top: 4px; }
+  .empty { text-align: center; color: var(--muted); padding: 48px 16px; font-size: 15px; line-height: 1.6; }
+  .more-note { text-align: center; color: var(--muted); font-size: 13px; padding: 8px 0 0; }
 
-  .btn-sm {
-    padding: 12px 20px; background: #1a1a1a; color: #fff;
-    border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
-    cursor: pointer; white-space: nowrap;
-  }
-  .btn-sm:hover { background: #333; }
+  /* ── Bottom bar ── */
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: #fff; border-top: 1px solid var(--line);
+         box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.06); padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); }
+  .bar .wrap { display: flex; align-items: center; gap: 12px; }
+  .bar-count { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; }
+  .bar-count small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+  .bar-btn { height: 50px; padding: 0 24px; border-radius: 15px; border: none; background: var(--ink); color: #fff;
+             font-size: 16px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .bar-btn:disabled { background: #d1d5db; cursor: not-allowed; }
+
+  /* ── Full-screen panels (print list, settings) ── */
+  .panel { position: fixed; inset: 0; z-index: 30; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .panel[hidden] { display: none; }
+  .panel-head { position: sticky; top: 0; z-index: 2; background: rgba(244, 245, 247, 0.96); backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .panel-head .wrap { display: flex; align-items: center; gap: 8px; height: 60px; }
+  .panel-head h2 { flex: 1; font-size: 18px; font-weight: 750; text-align: center; }
+  .head-btn { border: none; background: none; font-size: 15px; font-weight: 650; cursor: pointer; padding: 10px 4px; min-width: 72px; text-align: left; }
+  .head-btn.right { text-align: right; color: var(--red); }
+  .head-btn.right[hidden] { visibility: hidden; display: block; }
+  .panel-body { padding: 16px 0 48px; }
+
+  .item { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 12px; margin-bottom: 12px; }
+  .item canvas { display: block; width: 100%; max-width: 420px; margin: 0 auto; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; }
+  .item.bad canvas { outline: 2px solid var(--red); outline-offset: 2px; }
+  .item-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .item-info { flex: 1; min-width: 0; }
+  .item-info b { display: block; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item-info span { font-size: 13px; color: var(--muted); }
+  .stepper { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 13px; overflow: hidden; flex: 0 0 auto; }
+  .stepper button { width: 42px; height: 42px; border: none; background: #fff; font-size: 22px; cursor: pointer; line-height: 1; }
+  .stepper button:disabled { color: #d1d5db; cursor: not-allowed; }
+  .stepper output { min-width: 28px; text-align: center; font-weight: 750; font-variant-numeric: tabular-nums; }
+  .remove { width: 42px; height: 42px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 13px; background: #fff;
+            cursor: pointer; color: var(--muted); display: flex; align-items: center; justify-content: center; }
+  .remove svg { width: 18px; height: 18px; }
+  .item details { margin-top: 10px; }
+  .item summary { font-size: 13px; color: var(--muted); cursor: pointer; }
+
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 56px; padding: 0 20px;
+         background: var(--ink); color: #fff; border: none; border-radius: 16px; font-size: 17px; font-weight: 750; cursor: pointer; }
+  .btn:disabled { background: #d1d5db; cursor: not-allowed; }
+  .btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); height: 48px; font-size: 15px; margin-top: 10px; }
+  .btn.ghost[hidden] { display: none; }
+  .status { text-align: center; margin-top: 12px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+  .status.error { color: var(--red); }
+  .status.success { color: var(--green); font-weight: 650; }
+  .fix-note { font-size: 13px; color: var(--red); text-align: center; margin: 0 0 10px; }
+  .fix-note:empty { display: none; }
+  .progress-bar-container { width: 100%; height: 6px; background: #e5e7eb; border-radius: 3px; margin-top: 12px; overflow: hidden; display: none; }
+  .progress-bar { height: 100%; background: var(--ink); border-radius: 3px; transition: width 0.3s ease; width: 0%; }
+  .tip { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; font-size: 14px; line-height: 1.6; margin-top: 16px; }
+  .tip h3 { font-size: 14px; margin-bottom: 4px; }
+  .tip ol { margin-left: 20px; }
+  .tip .key { color: #E11D48; font-weight: 700; }
+
+  /* ── Settings panel ── */
+  .section { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 14px; }
+  .section h3 { font-size: 16px; font-weight: 750; margin-bottom: 4px; }
+  .help-text { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+  .sheet-input-row { display: flex; gap: 8px; margin-top: 10px; }
+  .sheet-input-row input { flex: 1; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid #ddd; border-radius: 11px; font-size: 14px; outline: none; }
+  .sheet-input-row input:focus { border-color: var(--ink); }
+  .btn-sm { height: 44px; padding: 0 16px; background: var(--ink); color: #fff; border: none; border-radius: 11px; font-size: 14px; font-weight: 650; cursor: pointer; white-space: nowrap; }
   .btn-sm:disabled { background: #ccc; cursor: not-allowed; }
-  .btn-sm.ghost { background: #fff; color: #1a1a1a; border: 1px solid #ccc; }
-  .btn-sm.ghost:hover { background: #f3f3f3; }
-  .btn-sm.small { padding: 6px 12px; font-size: 13px; }
-
-  .or-divider { text-align: center; color: #aaa; font-size: 13px; margin: 14px 0; position: relative; }
-  .or-divider::before, .or-divider::after { content: ''; position: absolute; top: 50%; width: 38%; height: 1px; background: #e0e0e0; }
-  .or-divider::before { left: 0; }
-  .or-divider::after { right: 0; }
-  .drop-zone {
-    border: 2px dashed #ccc; border-radius: 8px; padding: 22px;
-    text-align: center; cursor: pointer; transition: all 0.2s; color: #888; font-size: 14px;
-  }
-  .drop-zone:hover, .drop-zone.dragover { border-color: #1a1a1a; background: #fafafa; color: #1a1a1a; }
+  .btn-sm.ghost { background: #fff; color: var(--ink); border: 1px solid #ccc; }
+  .btn-sm.small { height: 34px; padding: 0 12px; font-size: 13px; }
+  .sheet-other { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--amber-bg); border: 1px solid #fde68a;
+                 color: var(--amber-ink); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-top: 10px; }
+  .sheet-other[hidden] { display: none; }
+  .drop-zone { border: 2px dashed #ccc; border-radius: 12px; padding: 18px; text-align: center; cursor: pointer; color: #888; font-size: 14px; margin-top: 12px; }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--ink); background: #fafafa; color: var(--ink); }
   .drop-zone.has-file { border-color: #22c55e; background: #f0fdf4; color: #166534; }
-
-  .rows-preview { margin-top: 12px; max-height: 220px; overflow: auto; font-size: 12px; border: 1px solid #eee; border-radius: 6px; }
-  .rows-preview table { width: 100%; border-collapse: collapse; }
-  .rows-preview th, .rows-preview td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
-  .rows-preview th { background: #f9f9f9; font-weight: 600; position: sticky; top: 0; }
-
-  .btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: 100%; padding: 16px 24px; background: #1a1a1a; color: #fff;
-    border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
-    cursor: pointer; transition: all 0.2s;
-  }
-  .btn:hover { background: #333; }
-  .btn:disabled { background: #ccc; cursor: not-allowed; }
-
-  .status { text-align: center; margin-top: 12px; font-size: 14px; color: #666; }
-  .status.error { color: #dc2626; }
-  .status.success { color: #16a34a; }
-  .help-text { font-size: 13px; color: #888; margin-top: 8px; line-height: 1.5; }
-
-  .progress-bar-container { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin-top: 12px; overflow: hidden; display: none; }
-  .progress-bar { height: 100%; background: #1a1a1a; border-radius: 3px; transition: width 0.3s ease; width: 0%; }
-
-  details > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+  details.instructions { background: var(--amber-bg); border: 1px solid #fde68a; border-radius: 12px; padding: 10px 14px; margin-top: 12px;
+                         font-size: 13px; color: var(--amber-ink); line-height: 1.6; }
+  details > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; font-weight: 650; }
   details > summary::-webkit-details-marker { display: none; }
   details > summary::before { content: '\25B8'; display: inline-block; transition: transform 0.15s; }
   details[open] > summary::before { transform: rotate(90deg); }
-
-  .instructions {
-    background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
-    padding: 10px 16px; margin-top: 12px; font-size: 13px; color: #92400e; line-height: 1.6;
-  }
-  .instructions summary { font-weight: 600; }
-  .instructions ol { margin: 6px 0 0 18px; }
   .instructions p { margin-top: 6px; }
-  .instructions table { border-collapse: collapse; margin-top: 6px; }
+  .instructions .tbl { overflow-x: auto; }
+  .instructions table { border-collapse: collapse; margin-top: 6px; min-width: 420px; }
   .instructions td, .instructions th { border: 1px solid #fde68a; padding: 3px 8px; text-align: left; vertical-align: top; }
-
-  .adv { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee; }
-  .adv summary { font-size: 14px; font-weight: 600; color: #333; padding: 4px 0; }
-  .adv-body { padding-top: 8px; }
-  .adv .tag {
-    font-size: 12px; font-weight: 500; color: #92400e; background: #fffbeb;
-    border: 1px solid #fde68a; border-radius: 999px; padding: 1px 8px;
-  }
-  .adv-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
-  .settings-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 4px; }
-  .settings-title:first-child { margin-top: 0; }
-
-  .fld { display: grid; grid-template-columns: 170px minmax(0, 1fr) 44px; gap: 10px; align-items: center; padding: 5px 0; }
-  .fld label, .fit-row label { font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-  .fld input[type="checkbox"], .fit-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #1a1a1a; flex-shrink: 0; }
-  .fld input[type="range"] { width: 100%; accent-color: #1a1a1a; }
-  .fld select { width: 100%; min-width: 0; padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: #fff; }
+  .settings-title { font-size: 12px; font-weight: 650; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 4px; }
+  .template-selector { display: flex; gap: 10px; margin-top: 8px; }
+  .template-option { flex: 1; min-width: 0; padding: 12px; border: 2px solid #e0e0e0; border-radius: 12px; background: #fff; cursor: pointer; text-align: center; }
+  .template-option.active { border-color: var(--ink); background: #f9f9f9; }
+  .template-option .tpl-name { font-size: 14px; font-weight: 650; }
+  .template-option .tpl-desc { font-size: 12px; color: #888; margin-top: 2px; }
+  .tag { font-size: 12px; font-weight: 500; color: var(--amber-ink); background: var(--amber-bg); border: 1px solid #fde68a; border-radius: 999px; padding: 1px 8px; }
+  .tag[hidden] { display: none; }
+  .fld { display: grid; grid-template-columns: 140px minmax(0, 1fr) 42px; gap: 10px; align-items: center; padding: 5px 0; }
+  .fld label, .opt-row label { font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .fld input[type="checkbox"], .opt-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--ink); flex-shrink: 0; }
+  .fld input[type="range"] { width: 100%; accent-color: var(--ink); }
+  .fld select, .opt-row select { width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; background: #fff; }
+  .opt-row select { width: auto; }
   .slider-value { font-size: 13px; color: #666; text-align: right; }
   .fld.off input[type="range"], .fld.off select, .fld.off .slider-value { opacity: 0.35; }
-  .fit-row { margin-top: 8px; padding: 10px 12px; background: #f9f9f9; border-radius: 8px; }
   .opt-row { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 4px 0; }
-  .opt-row label { font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-  .opt-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #1a1a1a; }
-  .opt-row select { padding: 5px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: #fff; }
   .opt-row.off { opacity: 0.4; }
+  .adv-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+  .try-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 10px; }
+  .try-grid label { font-size: 13px; color: #555; display: flex; flex-direction: column; gap: 4px; }
+  .try-grid input { width: 100%; height: 42px; padding: 0 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; }
+  #tryCanvas { display: block; width: 100%; max-width: 420px; margin: 12px auto 0; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; }
 
-  .try-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
-  .try-grid label { font-size: 13px; color: #555; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .try-grid input { width: 100%; padding: 9px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; min-width: 0; }
-  .try-grid input:focus { border-color: #1a1a1a; }
-
-  .all-bar { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #eee; }
-  .all-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-top: 14px; }
-  .all-grid[hidden] { display: none; }
-  .all-item { background: none; border: none; padding: 0; cursor: pointer; text-align: center; font: inherit; font-size: 12px; color: #666; }
-  .all-item canvas { display: block; width: 100%; background: #fff; border: 1px solid #ccc; border-radius: 3px; margin-bottom: 4px; }
-  .all-item:hover canvas { border-color: #1a1a1a; }
-  .all-item.bad canvas { outline: 2px solid #dc2626; outline-offset: 1px; }
-  .all-item.warn canvas { outline: 2px solid #f59e0b; outline-offset: 1px; }
-  .all-item.current canvas { box-shadow: 0 0 0 3px #1a1a1a; }
-
-  .template-selector { display: flex; gap: 12px; margin-bottom: 4px; }
-  .template-option {
-    flex: 1; min-width: 0; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; background: #fff;
-    cursor: pointer; text-align: center; transition: all 0.2s; font: inherit; color: inherit;
-  }
-  .template-option:hover { border-color: #999; }
-  .template-option.active { border-color: #1a1a1a; background: #f9f9f9; }
-  .template-option .tpl-name { font-size: 14px; font-weight: 600; }
-  .template-option .tpl-desc { font-size: 12px; color: #888; margin-top: 2px; }
-
-  .row-pick { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
-  .row-pick label { font-size: 14px; color: #333; min-width: 150px; }
-  .row-pick select { flex: 1; min-width: 180px; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fff; }
-
-  .count-line { font-size: 14px; color: #333; margin: 4px 0 12px; }
-  .count-line strong { font-size: 16px; }
-  .warn-box {
-    background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
-    border-radius: 8px; padding: 10px 14px; font-size: 13px; line-height: 1.6; margin-top: 12px;
-  }
-  .warn-box ul { margin: 4px 0 0 18px; }
-  .warn-box.soft { background: #fffbeb; border-color: #fde68a; color: #92400e; }
-  .issue-link {
-    display: block; width: 100%;
-    background: none; border: none; padding: 0; font: inherit; color: inherit; text-align: left;
-    cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px;
-  }
-  .issue-link:hover { text-decoration-style: solid; }
-
-  .check-layout { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 28px; align-items: start; margin-top: 8px; }
-  .preview-wrap { display: flex; flex-direction: column; align-items: center; }
-  .preview-wrap canvas { background: #fff; border: 1px solid #ccc; border-radius: 3px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); max-width: 100%; }
-  .preview-wrap canvas.bad { outline: 2px solid #dc2626; outline-offset: 2px; }
-  .label-size-note { font-size: 12px; color: #888; margin-top: 8px; }
-  .preview-nav { display: flex; align-items: center; gap: 12px; margin-top: 10px; font-size: 13px; color: #555; }
-  .preview-nav button { padding: 6px 12px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; }
-  .preview-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
-  .fix-note { font-size: 13px; color: #dc2626; text-align: center; margin-top: 8px; }
-  .fix-note:empty { display: none; }
-
-  .barcode-specs { margin-top: 14px; width: 100%; font-size: 12px; color: #555; line-height: 1.7; background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 10px 12px; }
-  .barcode-specs:empty { display: none; }
-  .barcode-specs .spec-title { font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; margin-bottom: 4px; }
+  .barcode-specs { margin-top: 8px; font-size: 12px; color: #555; line-height: 1.7; background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 8px 12px; }
+  .barcode-specs .spec-title { font-weight: 650; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; margin-bottom: 4px; }
   .barcode-specs .spec-row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
-  .barcode-specs .val { font-variant-numeric: tabular-nums; font-weight: 600; color: #1a1a1a; text-align: right; }
+  .barcode-specs .val { font-variant-numeric: tabular-nums; font-weight: 650; color: #1a1a1a; text-align: right; }
   .barcode-specs .ok { color: #16a34a; }
-  .barcode-specs .bad { color: #dc2626; }
-  .barcode-specs .soft { color: #92400e; }
+  .barcode-specs .bad { color: var(--red); }
+  .barcode-specs .soft { color: var(--amber-ink); }
 
-  @media (max-width: 820px) {
-    .check-layout { grid-template-columns: minmax(0, 1fr); }
-    .fld { grid-template-columns: 130px minmax(0, 1fr) 40px; }
-    .try-grid { grid-template-columns: minmax(0, 1fr); }
-    .row-pick select { min-width: 0; }
+  @media (min-width: 700px) {
+    .try-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); }
   }
 </style>
 </head>
 <body>
-<div class="container">
-  <h1><span aria-hidden="true">&#127991;&#65039;</span> Display Label Generator</h1>
-  <p class="subtitle">Price stickers for display shoes: shoe name, price and a barcode that <strong>Stock check</strong> can scan.
-    Your list loads by itself. Check the stickers, download the PDF, then print it with the NIIMBOT app.</p>
-
-  <!-- Step 1: Sticker list (loads by itself from the team Google Sheet) -->
-  <div class="step" id="stepData">
-    <div class="step-header">
-      <div class="step-number">1</div>
-      <div class="step-title">Your sticker list</div>
+<!-- Screen 1: find the shoe, tap the sizes -->
+<header class="top">
+  <div class="wrap">
+    <div class="top-row">
+      <h1>Display Stickers<small>Machino &middot; NIIMBOT B1 &middot; 50 &times; 30 mm</small></h1>
+      <button type="button" class="icon-btn" id="settingsBtn" aria-label="Settings" onclick="openPanel('settingsPanel')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
-    <p class="help-text" style="margin:0 0 10px">The list comes from this Google Sheet. It loads by itself when you open this page.</p>
-    <div class="sheet-input-row">
-      <input type="text" id="sheetUrl" aria-label="Google Sheet link" placeholder="Paste a Google Sheet link..." oninput="showSheetOther()">
-      <button class="btn-sm" id="fetchBtn" onclick="fetchSheet()">Load</button>
-      <button class="btn-sm ghost" type="button" onclick="clearSheet()" title="Empty the box and the list">Clear</button>
+    <div class="search">
+      <svg class="glass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="search" placeholder="Search shoe name or SKU" aria-label="Search shoe name or SKU" autocomplete="off" enterkeyhint="search">
+      <button type="button" class="clear" id="searchClear" aria-label="Clear search" hidden>&times;</button>
     </div>
-    <div class="sheet-status" id="sheetStatus" role="status"></div>
-    <div class="sheet-other" id="sheetOther" hidden>
-      <span>This is not the usual sheet link.</span>
-      <button type="button" class="btn-sm ghost small" onclick="useUsualSheet()">Use the usual sheet</button>
-    </div>
-    <p class="help-text" style="margin-top:0">Changed something in the sheet? Wait 1&ndash;2 minutes, then press <strong>Load</strong>.</p>
-
-    <div class="or-divider">or open a CSV file</div>
-    <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none">
-    <div class="drop-zone" id="csvDrop">
-      <span id="csvLabel">Drop a CSV file here, or click to choose one</span>
-    </div>
-
-    <details class="instructions">
-      <summary>How the sheet must look</summary>
-      <p>Row 1 must have these columns. One row for each sticker.</p>
-      <table>
-        <tr><th>Column</th><th>What to type</th><th>Example</th></tr>
-        <tr><td><strong>SHOE</strong></td><td>Shoe name</td><td>Lara Slingback Heels</td></tr>
-        <tr><td><strong>PRICE</strong></td><td>Price in RM, numbers only</td><td>208.00</td></tr>
-        <tr><td><strong>SKU</strong></td><td>The shoe's SKU, exactly as in Shopify. This is the barcode.</td><td>1800044001-36</td></tr>
-        <tr><td>COPIES <em>(optional)</em></td><td>How many stickers (empty = 1)</td><td>2</td></tr>
-      </table>
-      <p><strong>Using a different sheet?</strong> In Google Sheets go to <strong>File &rarr; Share &rarr; Publish to web</strong>,
-        pick the sheet tab, choose <strong>Comma-separated values (.csv)</strong>, press <strong>Publish</strong>, copy the link,
-        paste it in the box above and press <strong>Load</strong>. This computer remembers it. Press <strong>Use the usual sheet</strong> to go back.</p>
-      <p><strong>Note:</strong> anyone with a published link can open the sheet. Only put shoe names, prices and SKUs in it &mdash; nothing private.</p>
-    </details>
-    <div id="rowsPreview"></div>
+    <div class="filters" id="filters" role="toolbar" aria-label="Filter"></div>
+    <div class="load-line" id="sheetStatus" role="status"></div>
   </div>
+</header>
 
-  <!-- Step 2: Check -->
-  <div class="step" id="stepCheck">
-    <div class="step-header">
-      <div class="step-number">2</div>
-      <div class="step-title">Check your stickers</div>
-    </div>
-    <div class="count-line" id="countLine"></div>
-    <div id="warnings"></div>
+<main class="wrap">
+  <div class="list" id="list"></div>
+  <div class="empty" id="emptyNote" hidden></div>
+</main>
 
-    <div class="check-layout">
-      <div class="check-controls">
-        <div class="row-pick">
-          <label for="shoeSelect">Print stickers for</label>
-          <select id="shoeSelect" onchange="previewIdx = 0; refreshAfterSelect();">
-            <option value="__ALL__">No stickers yet</option>
-          </select>
-        </div>
-
-        <div class="settings-title">Template</div>
-        <div class="template-selector">
-          <button type="button" class="template-option active" id="tplBoxed" onclick="selectTemplate('boxed')">
-            <div class="tpl-name">Standard</div>
-            <div class="tpl-desc">Name, price and barcode</div>
-          </button>
-          <button type="button" class="template-option" id="tplBarcode" onclick="selectTemplate('barcode')">
-            <div class="tpl-name">Barcode only</div>
-            <div class="tpl-desc">Just the barcode, biggest bars</div>
-          </button>
-        </div>
-
-        <details class="adv" id="stickerSettings">
-          <summary>Sticker settings (optional) <span class="tag" id="customTag" hidden>custom settings in use</span></summary>
-          <div class="adv-body">
-            <div class="settings-title">Name</div>
-            <div class="fld">
-              <label><input type="checkbox" id="showShoe" checked onchange="onSettingsChange()"> Show name</label>
-              <input type="range" id="shoePt" min="7" max="14" step="0.5" value="11" aria-label="Name size" oninput="onSettingsChange()">
-              <span class="slider-value" id="shoePtVal">11pt</span>
-            </div>
-            <div class="opt-row" data-group="name">
-              <label><input type="checkbox" id="shoeBold" checked onchange="onSettingsChange()"> Bold</label>
-              <label><input type="checkbox" id="shoeCaps" onchange="onSettingsChange()"> ALL CAPITALS</label>
-              <label><input type="checkbox" id="showSize" onchange="onSettingsChange()"> Add size from SKU ("&hellip; - 36")</label>
-              <label><input type="checkbox" id="autoFit" checked onchange="onSettingsChange()"> Shrink long names to fit</label>
-            </div>
-            <p class="help-text" style="margin-top:2px">Drag the size: the words move between the 2 lines by themselves. A name that does not fit in 2 lines gets a little smaller.</p>
-
-            <div class="settings-title">Price</div>
-            <div class="fld">
-              <label><input type="checkbox" id="showPrice" checked onchange="onSettingsChange()"> Show price</label>
-              <input type="range" id="pricePt" min="6.5" max="12" step="0.5" value="8" aria-label="Price size" oninput="onSettingsChange()">
-              <span class="slider-value" id="pricePtVal">8pt</span>
-            </div>
-            <div class="opt-row" data-group="price">
-              <label><input type="checkbox" id="priceBold" onchange="onSettingsChange()"> Bold</label>
-              <label>Position
-                <select id="pricePos" onchange="onSettingsChange()">
-                  <option value="bottom">Bottom right</option>
-                  <option value="top">Top right</option>
-                </select>
-              </label>
-            </div>
-            <p class="help-text" style="margin-top:2px">The price has its own space on the right and is always a little smaller than the name.</p>
-
-            <div class="settings-title">Barcode</div>
-            <div class="opt-row">
-              <label><input type="checkbox" id="showDivider" checked onchange="onSettingsChange()"> Line above barcode</label>
-            </div>
-            <div class="fld">
-              <label><input type="checkbox" id="showSkuText" onchange="onSettingsChange()"> SKU under barcode</label>
-              <input type="range" id="skuPt" min="6" max="10" step="0.5" value="7" aria-label="SKU text size" oninput="onSettingsChange()">
-              <span class="slider-value" id="skuPtVal">7pt</span>
-            </div>
-            <div class="fld">
-              <label for="skuFont" style="padding-left:26px">SKU font</label>
-              <select id="skuFont" onchange="onSettingsChange()">
-                <option value="helvetica">Helvetica</option>
-                <option value="courier">Courier (typewriter)</option>
-              </select>
-              <span></span>
-            </div>
-            <p class="help-text">The barcode always gets the space that is left. This computer remembers your settings.</p>
-            <div class="adv-actions">
-              <button type="button" class="btn-sm ghost" onclick="resetSettings()">Reset to default</button>
-            </div>
-          </div>
-        </details>
-
-        <details class="adv" id="tryBox">
-          <summary>Try a name (test without the sheet) <span class="tag" id="tryTag" hidden>showing your test sticker</span></summary>
-          <div class="adv-body">
-            <div class="try-grid">
-              <label>Name<input type="text" id="tryShoe" placeholder="e.g. Hana OG Flats in White" oninput="onTryInput()"></label>
-              <label>Price<input type="text" id="tryPrice" placeholder="148.00" oninput="onTryInput()"></label>
-              <label>SKU<input type="text" id="trySku" placeholder="1800001001-35" oninput="onTryInput()"></label>
-            </div>
-            <p class="help-text">Type a name to see it on a sticker straight away. It is only a test: it is not added to the sheet or the PDF. An empty price or SKU uses an example.</p>
-            <div class="adv-actions">
-              <button type="button" class="btn-sm ghost small" onclick="clearTry()">Back to my list</button>
-            </div>
-          </div>
-        </details>
-      </div>
-
-      <div class="preview-wrap">
-        <canvas id="previewCanvas"></canvas>
-        <div class="label-size-note">50 &times; 30 mm &middot; NIIMBOT B1 &middot; shown about 2&times; bigger</div>
-        <div class="preview-nav">
-          <button type="button" id="prevBtn" onclick="previewIdx--; updatePreview();">&#9664; Prev</button>
-          <span id="previewPos">-</span>
-          <button type="button" id="nextBtn" onclick="previewIdx++; updatePreview();">Next &#9654;</button>
-        </div>
-        <button type="button" class="btn-sm" id="singleBtn" style="margin-top:10px;" onclick="downloadSingle()">Download just this sticker (test print)</button>
-        <div class="barcode-specs" id="barcodeSpecs"></div>
-      </div>
-    </div>
-
-    <div class="all-bar">
-      <button type="button" class="btn-sm ghost" id="allBtn" onclick="toggleAll()">Show all stickers</button>
-      <span class="help-text" id="allNote" style="margin:0"></span>
-    </div>
-    <div class="all-grid" id="allGrid" hidden></div>
-  </div>
-
-  <!-- Step 3: Download -->
-  <div class="step" id="stepGenerate">
-    <div class="step-header">
-      <div class="step-number">3</div>
-      <div class="step-title">Download the PDF and print</div>
-    </div>
-    <button class="btn" id="generateBtn" onclick="downloadAll()" disabled>Download PDF</button>
-    <p class="fix-note" id="fixNote"></p>
-    <div class="progress-bar-container" id="progressContainer">
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
-    <div class="status" id="status"></div>
-    <details class="instructions">
-      <summary>Printing with the NIIMBOT app</summary>
-      <ol>
-        <li>Open the PDF in the <strong>NIIMBOT</strong> app. Choose the 50 &times; 30 mm label.</li>
-        <li>Print at <strong>100% size</strong>. Do not use "fit" or "scale" &mdash; it makes the barcode bars uneven.</li>
-        <li>Print <strong>one</strong> sticker first. Scan it with <strong>Stock check</strong> on the POS phone.</li>
-        <li>It shows the right shoe? Print the rest.</li>
-        <li>Bars look grey or broken? Make the print darker by one step and try again.</li>
-      </ol>
-    </details>
+<div class="bar">
+  <div class="wrap">
+    <div class="bar-count" id="barCount">Tap a size to add a sticker</div>
+    <button type="button" class="bar-btn" id="openPrint" onclick="openPanel('printPanel')" disabled>Print &#9656;</button>
   </div>
 </div>
+
+<!-- Screen 2: the print list -->
+<section class="panel" id="printPanel" hidden aria-label="Your stickers">
+  <div class="panel-head"><div class="wrap">
+    <button type="button" class="head-btn" onclick="closePanel()">&larr; Back</button>
+    <h2>Your stickers <span id="printCount"></span></h2>
+    <button type="button" class="head-btn right" id="clearBtn" onclick="clearPrintList()">Clear</button>
+  </div></div>
+  <div class="panel-body"><div class="wrap">
+    <div id="printItems"></div>
+    <p class="fix-note" id="fixNote"></p>
+    <button type="button" class="btn" id="generateBtn" onclick="downloadPdf()">Download PDF</button>
+    <div class="progress-bar-container" id="progressContainer"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="status" id="status"></div>
+    <button type="button" class="btn ghost" id="doneBtn" onclick="clearPrintList(true)" hidden>Printed? Clear the list</button>
+    <div class="tip">
+      <h3>Then print in the NIIMBOT app</h3>
+      <ol>
+        <li>New label (<strong>T50*30</strong>) &rarr; <strong>Add</strong> &rarr; <strong>PDF Print</strong> &rarr; pick the PDF.</li>
+        <li>Do not move the blue frame. Tap <strong>Add</strong>.</li>
+        <li><span class="key">Delete the &ldquo;Double-click to Edit&rdquo; box.</span></li>
+        <li>Print: density <strong>5</strong>, copies <strong>1</strong>.</li>
+        <li>Scan one sticker with <strong>Stock check</strong> before you stick them all.</li>
+      </ol>
+    </div>
+  </div></div>
+</section>
+
+<!-- Settings (for IT / managers) -->
+<section class="panel" id="settingsPanel" hidden aria-label="Settings">
+  <div class="panel-head"><div class="wrap">
+    <button type="button" class="head-btn" onclick="closePanel()">&larr; Back</button>
+    <h2>Settings</h2>
+    <span class="head-btn"></span>
+  </div></div>
+  <div class="panel-body"><div class="wrap">
+
+    <div class="section">
+      <h3>Shoe list (Google Sheet)</h3>
+      <p class="help-text" style="margin-top:2px">The list loads by itself from this sheet. Changed the sheet? Wait 1&ndash;2 minutes, then press <strong>Load</strong>.</p>
+      <div class="sheet-input-row">
+        <input type="text" id="sheetUrl" aria-label="Google Sheet link" placeholder="Paste a Google Sheet link..." oninput="showSheetOther()">
+        <button type="button" class="btn-sm" id="fetchBtn" onclick="fetchSheet()">Load</button>
+        <button type="button" class="btn-sm ghost" onclick="clearSheet()" title="Empty the box and the list">Clear</button>
+      </div>
+      <div class="sheet-other" id="sheetOther" hidden>
+        <span>This is not the usual sheet link.</span>
+        <button type="button" class="btn-sm ghost small" onclick="useUsualSheet()">Use the usual sheet</button>
+      </div>
+      <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none">
+      <div class="drop-zone" id="csvDrop"><span id="csvLabel">Or open a CSV file (tap, or drop it here)</span></div>
+      <details class="instructions">
+        <summary>How the sheet must look</summary>
+        <p>Row 1 must have these columns. <strong>One row for each shoe design</strong>, with all its sizes.</p>
+        <div class="tbl"><table>
+          <tr><th>Column</th><th>What to type</th><th>Example</th></tr>
+          <tr><td><strong>SHOE</strong></td><td>Shoe name</td><td>Bliss Block Heels in Black</td></tr>
+          <tr><td><strong>PRICE</strong></td><td>Price in RM, numbers only</td><td>178.20</td></tr>
+          <tr><td><strong>SKU</strong></td><td>The SKU of <strong>any one size</strong>, exactly as in Shopify. The website changes the size at the end for each sticker.</td><td>MA6025-2-B-20-41</td></tr>
+          <tr><td><strong>SIZES</strong></td><td>All sizes, exactly as in Shopify. Commas and/or a range.</td><td>34, 35-42</td></tr>
+        </table></div>
+        <p><strong>No SIZES</strong> (e.g. a bag): leave it empty. The row prints one sticker with the SKU as it is.</p>
+        <p><strong>Half sizes:</strong> type them like Shopify does (e.g. Shopify writes 34, not 34.5).</p>
+        <p><strong>Using a different sheet?</strong> In Google Sheets: <strong>File &rarr; Share &rarr; Publish to web</strong>, pick the tab,
+          choose <strong>Comma-separated values (.csv)</strong>, press <strong>Publish</strong>, copy the link, paste it above and press <strong>Load</strong>.
+          This phone remembers it. Press <strong>Use the usual sheet</strong> to go back.</p>
+        <p><strong>Note:</strong> anyone with a published link can open the sheet. Only put shoe names, prices and SKUs in it &mdash; nothing private.</p>
+      </details>
+    </div>
+
+    <div class="section">
+      <h3>Sticker design <span class="tag" id="customTag" hidden>custom settings in use</span></h3>
+      <p class="help-text" style="margin-top:2px">Usually you do not need to change anything here. This phone remembers your choice.</p>
+      <div class="template-selector">
+        <button type="button" class="template-option active" id="tplBoxed" onclick="selectTemplate('boxed')">
+          <div class="tpl-name">Standard</div><div class="tpl-desc">Name, price and code</div>
+        </button>
+        <button type="button" class="template-option" id="tplBarcode" onclick="selectTemplate('barcode')">
+          <div class="tpl-name">Code only</div><div class="tpl-desc">Just the barcode or QR, biggest</div>
+        </button>
+      </div>
+
+      <div class="settings-title">Name</div>
+      <div class="fld">
+        <label><input type="checkbox" id="showShoe" checked onchange="onSettingsChange()"> Show name</label>
+        <input type="range" id="shoePt" min="7" max="14" step="0.5" value="11" aria-label="Name size" oninput="onSettingsChange()">
+        <span class="slider-value" id="shoePtVal">11pt</span>
+      </div>
+      <div class="opt-row" data-group="name">
+        <label><input type="checkbox" id="shoeBold" checked onchange="onSettingsChange()"> Bold</label>
+        <label><input type="checkbox" id="shoeCaps" onchange="onSettingsChange()"> ALL CAPITALS</label>
+        <label><input type="checkbox" id="showSize" onchange="onSettingsChange()"> Add the size ("&hellip; - 36")</label>
+        <label><input type="checkbox" id="autoFit" checked onchange="onSettingsChange()"> Shrink long names to fit</label>
+      </div>
+
+      <div class="settings-title">Price</div>
+      <div class="fld">
+        <label><input type="checkbox" id="showPrice" checked onchange="onSettingsChange()"> Show price</label>
+        <input type="range" id="pricePt" min="6.5" max="12" step="0.5" value="8" aria-label="Price size" oninput="onSettingsChange()">
+        <span class="slider-value" id="pricePtVal">8pt</span>
+      </div>
+      <div class="opt-row" data-group="price">
+        <label><input type="checkbox" id="priceBold" onchange="onSettingsChange()"> Bold</label>
+        <label>Position
+          <select id="pricePos" onchange="onSettingsChange()">
+            <option value="bottom">Bottom right</option>
+            <option value="top">Top right</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="settings-title">Code</div>
+      <div class="opt-row">
+        <label><input type="checkbox" id="showDivider" checked onchange="onSettingsChange()"> Line above the code</label>
+      </div>
+      <div class="fld">
+        <label><input type="checkbox" id="showSkuText" onchange="onSettingsChange()"> SKU under barcode</label>
+        <input type="range" id="skuPt" min="6" max="10" step="0.5" value="7" aria-label="SKU text size" oninput="onSettingsChange()">
+        <span class="slider-value" id="skuPtVal">7pt</span>
+      </div>
+      <div class="fld">
+        <label for="skuFont" style="padding-left:26px">SKU font</label>
+        <select id="skuFont" onchange="onSettingsChange()">
+          <option value="helvetica">Helvetica</option>
+          <option value="courier">Courier (typewriter)</option>
+        </select>
+        <span></span>
+      </div>
+      <p class="help-text">NEW SKUs get a barcode. OLD SKUs (with letters) get a QR code with the SKU written next to it. Both scan.</p>
+      <div class="adv-actions">
+        <button type="button" class="btn-sm ghost" onclick="resetSettings()">Reset to default</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Try a sticker</h3>
+      <p class="help-text" style="margin-top:2px">Type a name, price and SKU to see a sticker. Only a test: nothing is added to the sheet or the print list.</p>
+      <div class="try-grid">
+        <label>Name<input type="text" id="tryShoe" placeholder="e.g. Hana OG Flats in White" oninput="renderTry()"></label>
+        <label>Price<input type="text" id="tryPrice" placeholder="148.00" inputmode="decimal" oninput="renderTry()"></label>
+        <label>SKU<input type="text" id="trySku" placeholder="1800001001-35" autocapitalize="characters" oninput="renderTry()"></label>
+      </div>
+      <canvas id="tryCanvas"></canvas>
+      <div id="tryNote"></div>
+    </div>
+
+  </div></div>
+</section>
 
 <script>
 var jsPDF = window.jspdf.jsPDF;
@@ -502,8 +479,8 @@ var loadId = 0;   // ignore answers from an older Load that finish late
 // Wipe the old list before loading, so old stickers never linger.
 function startLoad() {
   setStatus('');
-  rows = [];
-  document.getElementById('rowsPreview').innerHTML = '';
+  designs = []; skuIndex = {}; stickerCache = {};
+  printList = [];   // read back from this phone when the new list has loaded
   refreshUI();
   return ++loadId;
 }
@@ -538,7 +515,7 @@ function fetchSheet() {
       btn.disabled = false;
       btn.textContent = 'Load';
       if (location.protocol === 'file:') {
-        setSheetStatus('This page was opened as a file, so Google will not send the sheet. Open https://itmachino.github.io/display-label-generator/ instead, or open a CSV file below.', 'error');
+        setSheetStatus('This page was opened as a file, so Google will not send the sheet. Open https://itmachino.github.io/display-label-generator/ instead, or open a CSV file in Settings.', 'error');
         return;
       }
       setSheetStatus('Could not open the Google Sheet. Check your internet and press Load. Still not working? Check the sheet is published (File → Share → Publish to web).', 'error');
@@ -577,36 +554,18 @@ function loadCsvFile(file) {
   });
 })();
 
-function showRowsPreview(headers, data) {
-  var html = '<div class="rows-preview"><table><tr>';
-  headers.forEach(function(h) { html += '<th>' + escHtml(h) + '</th>'; });
-  html += '</tr>';
-  data.slice(0, 6).forEach(function(row) {
-    html += '<tr>';
-    headers.forEach(function(h) { html += '<td>' + escHtml(row[h]) + '</td>'; });
-    html += '</tr>';
-  });
-  if (data.length > 6) {
-    html += '<tr><td colspan="' + headers.length + '" style="color:#888;text-align:center">... and ' + (data.length - 6) + ' more rows</td></tr>';
-  }
-  html += '</table></div>';
-  document.getElementById('rowsPreview').innerHTML = html;
-}
 
 // ─── STICKER DATA ────────────────────────────────────────────
 // The sheet is typed by hand, so every row is checked before it can print.
 //   errors   (red)    the sticker will NOT print until the row is fixed
 //   warnings (yellow) the sticker prints, but have a look
 
-var rows = [];        // one entry per sheet row with data, in sheet order
-var previewIdx = 0;
-
 // Accepted header names, compared after normHeader(): "Price (RM)" -> "price_rm"
 var FIELDS = [
   { key: 'shoe',   label: 'SHOE',   required: true,  aliases: ['shoe', 'shoe_name', 'name', 'product', 'product_name', 'title'] },
   { key: 'price',  label: 'PRICE',  required: true,  aliases: ['price', 'price_rm', 'rm', 'selling_price'] },
   { key: 'sku',    label: 'SKU',    required: true,  aliases: ['sku', 'barcode', 'sku_barcode', 'barcode_sku', 'code'] },
-  { key: 'copies', label: 'COPIES', required: false, aliases: ['copies', 'qty', 'quantity', 'stickers', 'labels'] }
+  { key: 'sizes',  label: 'SIZES',  required: false, aliases: ['sizes', 'size', 'size_range', 'sizes_range', 'size_s', 'all_sizes', 'size_list', 'range'] }
 ];
 var MAX_COPIES = 50;
 
@@ -636,7 +595,8 @@ function formatPrice(n) {
   return 'RM ' + parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + parts[1];
 }
 
-function checkRow(r) {
+// noCode: skip making the barcode / QR code (it is made when a size is picked).
+function checkRow(r, noCode) {
   r.errors = [];
   r.warnings = [];
 
@@ -677,86 +637,13 @@ function checkRow(r) {
 
   // Does the barcode fit the sticker, and does it read back correctly?
   r.bc = null;
-  if (r.code && !r.errors.some(function(e) { return e.indexOf('SKU') === 0; })) {
+  if (!noCode && r.code && !r.errors.some(function(e) { return e.indexOf('SKU') === 0; })) {
     r.bc = barcodeFor(r.code);
     if (!r.bc.ok) r.errors.push(r.bc.reason);
     else if (r.bc.check === 'fail') r.errors.push('The barcode did not read back correctly in the check. Do not print it; tell IT');
   }
 }
 
-// Returns true if at least one row loaded.
-function loadData(results, source) {
-  rows = [];
-  document.getElementById('rowsPreview').innerHTML = '';
-
-  if (results.errors.length && !results.data.length) {
-    setSheetStatus('Could not read the list: ' + results.errors[0].message, 'error');
-    refreshUI();
-    return false;
-  }
-
-  var headers = results.meta.fields || [];
-  var colFor = {};
-  FIELDS.forEach(function(f) {
-    for (var i = 0; i < headers.length; i++) {
-      if (f.aliases.indexOf(normHeader(headers[i])) !== -1) { colFor[f.key] = headers[i]; break; }
-    }
-  });
-  var missing = FIELDS.filter(function(f) { return f.required && !colFor[f.key]; });
-  if (missing.length) {
-    setSheetStatus('Could not find the ' + missing.map(function(f) { return f.label; }).join(' and ') +
-      (missing.length > 1 ? ' columns' : ' column') +
-      '. Row 1 of the sheet must be: SHOE, PRICE, SKU. Fix it, then press Load.', 'error');
-    refreshUI();
-    return false;
-  }
-
-  results.data.forEach(function(raw, i) {
-    var r = { sheetRow: i + 2 };   // row 1 is the header
-    FIELDS.forEach(function(f) {
-      r[f.key] = colFor[f.key] ? String(raw[colFor[f.key]] == null ? '' : raw[colFor[f.key]]).trim() : '';
-    });
-    if (!FIELDS.some(function(f) { return r[f.key]; })) return;   // blank line
-    checkRow(r);
-    rows.push(r);
-  });
-
-  // The same SKU on two rows with a different name or price: one of them is a typo.
-  var byCode = {};
-  rows.forEach(function(r) { if (r.code) (byCode[r.code.toUpperCase()] = byCode[r.code.toUpperCase()] || []).push(r); });
-  Object.keys(byCode).forEach(function(k) {
-    var list = byCode[k];
-    if (list.length < 2) return;
-    var differ = list.some(function(r) { return r.shoe !== list[0].shoe || r.priceText !== list[0].priceText; });
-    list.forEach(function(r) {
-      var others = list.filter(function(o) { return o !== r; }).map(function(o) { return o.sheetRow; }).join(', ');
-      if (differ) r.errors.push('Same SKU as row ' + others + ' but a different shoe or price. Which one is right?');
-      else r.warnings.push('The same sticker is also on row ' + others + '. Use COPIES instead?');
-    });
-  });
-
-  showRowsPreview(headers, results.data.filter(function(row) {
-    return headers.some(function(h) { return String(row[h] || '').trim(); });
-  }));
-
-  if (!rows.length) {
-    setSheetStatus('The sheet has no stickers yet. Add one row per sticker in the Google Sheet, wait 1–2 minutes, then press Load.', 'error');
-  } else {
-    setSheetStatus('✓ ' + plural(rows.length, 'row', 'rows') + ' loaded from ' + source + '.', 'success');
-  }
-  refreshUI();
-  return true;
-}
-
-// Rows picked in "Print stickers for", in sheet order.
-function selection() {
-  var v = document.getElementById('shoeSelect').value;
-  if (!v || v === '__ALL__') return rows;
-  return rows.filter(function(r) { return shoeKey(r) === v; });
-}
-function shoeKey(r) { return (r.shoe || '').trim().toUpperCase() || '__NONAME__'; }
-function readyRows(list) { return (list || selection()).filter(function(r) { return !r.errors.length; }); }
-function stickerCount(list) { return list.reduce(function(n, r) { return n + r.copiesN; }, 0); }
 
 // ─── BARCODE ─────────────────────────────────────────────────
 // Code 128 (the SKU), drawn so it scans every time on the NIIMBOT B1:
@@ -1400,170 +1287,6 @@ function resetSettings() {
   updatePreview();
 }
 
-// ─── CHECK LIST & PREVIEW ────────────────────────────────────
-
-function refreshUI() {
-  var sel = document.getElementById('shoeSelect');
-  var prev = sel.value;
-  var counts = {}, names = {};
-  rows.forEach(function(r) {
-    var k = shoeKey(r);
-    counts[k] = (counts[k] || 0) + r.copiesN;
-    names[k] = names[k] || r.shoe || '(no shoe name)';
-  });
-  sel.innerHTML = '';
-  if (!rows.length) {
-    sel.appendChild(new Option('No stickers yet', '__ALL__'));
-  } else {
-    sel.appendChild(new Option('Everything (' + plural(stickerCount(rows), 'sticker', 'stickers') + ')', '__ALL__'));
-    Object.keys(counts).sort().forEach(function(k) {
-      sel.appendChild(new Option(names[k] + ' (' + counts[k] + ')', k));
-    });
-  }
-  sel.value = (prev && (prev === '__ALL__' || counts[prev])) ? prev : '__ALL__';
-  previewIdx = 0;
-  refreshAfterSelect();
-}
-
-function refreshAfterSelect() {
-  updateBtn();
-  updatePreview();
-}
-
-function updateBtn() {
-  var list = selection(), ready = readyRows(list), n = stickerCount(ready);
-  var btn = document.getElementById('generateBtn');
-  btn.disabled = n === 0;
-  btn.textContent = n ? 'Download PDF (' + plural(n, 'sticker', 'stickers') + ')' : 'Download PDF';
-  var bad = list.length - ready.length;
-  document.getElementById('fixNote').textContent = bad
-    ? plural(bad, 'row is', 'rows are') + ' left out of the PDF until fixed (see step 2).'
-    : '';
-}
-
-function renderCountAndWarnings(list) {
-  var countEl = document.getElementById('countLine');
-  var warnEl = document.getElementById('warnings');
-  warnEl.innerHTML = '';
-  if (!rows.length) { countEl.textContent = 'No stickers yet. They appear here when your list loads (step 1).'; return; }
-
-  var ready = readyRows(list);
-  countEl.innerHTML = '<strong>' + plural(stickerCount(ready), 'sticker', 'stickers') + '</strong> ready to print' +
-    (list.length !== rows.length ? ' for this shoe.' : '.');
-
-  function box(items, soft, head, pick) {
-    if (!items.length) return;
-    var div = document.createElement('div');
-    div.className = 'warn-box' + (soft ? ' soft' : '');
-    var h = document.createElement('strong');
-    h.textContent = head;
-    div.appendChild(h);
-    var ul = document.createElement('ul');
-    items.slice(0, 12).forEach(function(r) {
-      var li = document.createElement('li');
-      var a = document.createElement('button');
-      a.type = 'button';
-      a.className = 'issue-link';
-      a.textContent = 'Row ' + r.sheetRow + ' · ' + rowName(r) + ': ' + pick(r).join('; ');
-      a.title = 'Show this sticker';
-      a.onclick = function() { showRow(list.indexOf(r)); };
-      li.appendChild(a);
-      ul.appendChild(li);
-    });
-    if (items.length > 12) {
-      var more = document.createElement('li');
-      more.textContent = '...and ' + (items.length - 12) + ' more (use Next to find them)';
-      ul.appendChild(more);
-    }
-    div.appendChild(ul);
-    warnEl.appendChild(div);
-  }
-
-  var st = getSettings(), measure = pdfMeasure();
-  var notesFor = function(r) {
-    var L = layout(r, measure, st);
-    var n = r.warnings.concat(L.notes, L.cuts.map(function(c) { return c.field + ' is too long to fit, even small, "' + c.dropped + '" will not print. Shorten it in the sheet'; }));
-    if (L.bc && L.bc.kind !== 'qr' && L.barBottom - L.barTop < MIN_BAR_H) n.push('barcode bars are short, untick "SKU under barcode" or make the text smaller');
-    return n;
-  };
-  var bad = list.filter(function(r) { return r.errors.length; });
-  box(bad, false, plural(bad.length, 'row needs', 'rows need') + ' fixing in the sheet. They will NOT print until fixed:',
-    function(r) { return r.errors; });
-  var soft = list.filter(function(r) { return !r.errors.length && notesFor(r).length; });
-  box(soft, true, plural(soft.length, 'row', 'rows') + ' will print, but please check:', notesFor);
-}
-
-// ─── TRY A NAME ──────────────────────────────────────────────
-// A test sticker typed in "Try a name". It is shown instead of the list, and is
-// never added to the sheet or the PDF.
-
-var tryRow = null;
-var TRY_EXAMPLE = { price: '148.00', sku: '1800001001-35' };
-
-function onTryInput() {
-  var shoe = document.getElementById('tryShoe').value.trim();
-  var price = document.getElementById('tryPrice').value.trim();
-  var sku = document.getElementById('trySku').value.trim();
-  tryRow = null;
-  if (shoe || price || sku) {
-    tryRow = { sheetRow: 0, shoe: shoe, price: price || TRY_EXAMPLE.price, sku: sku || TRY_EXAMPLE.sku, copies: '' };
-    checkRow(tryRow);
-  }
-  document.getElementById('tryTag').hidden = !tryRow;
-  updatePreview();
-}
-
-function clearTry(quiet) {
-  ['tryShoe', 'tryPrice', 'trySku'].forEach(function(id) { document.getElementById(id).value = ''; });
-  tryRow = null;
-  document.getElementById('tryTag').hidden = true;
-  if (!quiet) updatePreview();
-}
-
-// Show sticker i of the current list in the big preview.
-function showRow(i) {
-  if (tryRow) clearTry(true);
-  previewIdx = i;
-  updatePreview();
-  document.getElementById('previewCanvas').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-}
-
-// ─── SEE ALL STICKERS ────────────────────────────────────────
-
-var ALL_MAX = 300;   // more than this would make the page slow
-
-function toggleAll() {
-  var grid = document.getElementById('allGrid');
-  grid.hidden = !grid.hidden;
-  document.getElementById('allBtn').textContent = grid.hidden ? 'Show all stickers' : 'Hide all stickers';
-  if (grid.hidden) { grid.innerHTML = ''; document.getElementById('allNote').textContent = ''; }
-  else renderAll(selection());
-}
-
-function renderAll(list) {
-  var grid = document.getElementById('allGrid');
-  grid.innerHTML = '';
-  document.getElementById('allNote').textContent = !list.length ? 'No stickers yet.'
-    : 'Red = will not print, yellow = please check. Click a sticker to see it big.' +
-      (list.length > ALL_MAX ? ' Showing the first ' + ALL_MAX + '.' : '');
-  list.slice(0, ALL_MAX).forEach(function(r, i) {
-    var item = document.createElement('button');
-    item.type = 'button';
-    item.className = 'all-item';
-    var c = document.createElement('canvas');
-    var label = document.createElement('div');
-    label.textContent = 'Row ' + r.sheetRow + (r.copiesN > 1 ? ' · ' + r.copiesN + ' copies' : '');
-    item.appendChild(c);
-    item.appendChild(label);
-    grid.appendChild(item);
-    var L = drawSticker(c, r, 180);
-    if (r.errors.length) item.classList.add('bad');
-    else if (r.warnings.length || L.notes.length || L.cuts.length) item.classList.add('warn');
-    if (!tryRow && i === previewIdx) item.classList.add('current');
-    item.title = rowName(r);
-    item.onclick = function() { showRow(i); };
-  });
-}
 
 // ─── DRAWING ─────────────────────────────────────────────────
 
@@ -1607,77 +1330,6 @@ function drawSticker(canvas, r, cssW) {
   return L;
 }
 
-function updatePreview() {
-  var list = selection();
-  renderCountAndWarnings(list);
-
-  var n = list.length;
-  if (previewIdx >= n) previewIdx = n - 1;
-  if (previewIdx < 0) previewIdx = 0;
-  document.getElementById('prevBtn').disabled = !!tryRow || previewIdx <= 0;
-  document.getElementById('nextBtn').disabled = !!tryRow || previewIdx >= n - 1;
-  document.getElementById('previewPos').textContent = tryRow ? 'Your test sticker (not in the PDF)'
-    : n ? 'Row ' + list[previewIdx].sheetRow + ' (' + (previewIdx + 1) + ' of ' + n + ')' : 'Sample sticker';
-
-  var r = tryRow || (n ? list[previewIdx] : sampleRow());
-  var canvas = document.getElementById('previewCanvas');
-  var cssW = 400;   // shrinks to fit on a phone (CSS keeps the 50 x 30 shape)
-  canvas.style.width = '100%';
-  canvas.style.maxWidth = cssW + 'px';
-  canvas.style.height = 'auto';
-  var L = drawSticker(canvas, r, cssW);
-
-  var real = !!tryRow || n > 0;
-  var bad = real && r.errors.length;
-  canvas.classList.toggle('bad', !!bad);
-  document.getElementById('singleBtn').disabled = !real || !!bad;
-  renderSpecs(real ? r : null, L);
-  if (!document.getElementById('allGrid').hidden) renderAll(list);
-}
-
-// Measurements of the barcode on the sticker shown, so it can be checked against spec.
-function renderSpecs(r, L) {
-  var el = document.getElementById('barcodeSpecs');
-  if (!r) { el.innerHTML = ''; return; }
-  if (r.errors.length) {
-    el.innerHTML = '<div class="spec-title">This sticker will not print</div><div class="bad">' +
-      r.errors.map(escHtml).join('<br>') + '</div>';
-    return;
-  }
-  var bc = L.bc, barH = L.barBottom - L.barTop;
-  function row(label, val, cls) {
-    return '<div class="spec-row"><span>' + label + '</span><span class="val ' + (cls || '') + '">' + val + '</span></div>';
-  }
-  var check = bc.check === 'ok'
-    ? row('Read-back check', '✓ reads ' + escHtml(r.code), 'ok')
-    : row('Read-back check', 'could not run (no internet?) — test-print one first', 'soft');
-  if (bc.kind === 'qr') {
-    el.innerHTML = '<div class="spec-title">Printed code — QR (SKU too long for a barcode)</div>' +
-      row('Encodes (SKU)', escHtml(r.code)) +
-      row('Square size <span style="color:#aaa">(min 0.375mm)</span>', L.qr.m.toFixed(3) + 'mm = ' + L.qr.dots + ' printer dots ✓', 'ok') +
-      row('QR size', L.qr.size.toFixed(1) + ' × ' + L.qr.size.toFixed(1) + 'mm (' + bc.n + ' × ' + bc.n + ' squares)') +
-      row('Quiet zone <span style="color:#aaa">(4 squares)</span>', L.qr.quiet.toFixed(2) + 'mm ✓', 'ok') +
-      row('Why a QR code', 'a barcode of this SKU would be wider than ' + (LABEL_W - 2 * EDGE) + 'mm') +
-      check +
-      (r.copiesN > 1 ? row('Copies', r.copiesN) : '');
-    return;
-  }
-  el.innerHTML = '<div class="spec-title">Printed barcode — Code 128</div>' +
-    row('Encodes (SKU)', escHtml(r.code)) +
-    row('Narrow bar width <span style="color:#aaa">(min 0.25mm)</span>', bc.X.toFixed(3) + 'mm = ' + bc.xDots + ' printer dots ✓', 'ok') +
-    row('Bar height <span style="color:#aaa">(min ' + MIN_BAR_H + 'mm)</span>', barH.toFixed(1) + 'mm ' + (barH >= MIN_BAR_H ? '✓' : '✗'), barH >= MIN_BAR_H ? 'ok' : 'bad') +
-    row('Quiet zone, each end <span style="color:#aaa">(10 bars)</span>', bc.quiet.toFixed(2) + 'mm ✓', 'ok') +
-    row('Barcode length', (bc.codeW + 2 * bc.quiet).toFixed(1) + ' of ' + (LABEL_W - 2 * EDGE) + 'mm') +
-    row('Density', (1 / (5.5 * bc.X)).toFixed(2) + ' digits/mm') +
-    check +
-    (r.copiesN > 1 ? row('Copies', r.copiesN) : '');
-}
-
-function sampleRow() {
-  var r = { sheetRow: 0, shoe: 'Lara Slingback Heels', price: '208.00', sku: '1800044001-36', copies: '' };
-  checkRow(r);
-  return r;
-}
 
 // ─── PDF ─────────────────────────────────────────────────────
 
@@ -1720,53 +1372,518 @@ function today() {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
-async function downloadAll() {
+
+// ─── SHOE DESIGNS (one per sheet row, with all its sizes) ────
+// Sheet columns: SHOE, PRICE, SKU and SIZES.
+//   SKU   = the SKU of ANY one size, e.g. MA6025-2-B-20-41. The website swaps the
+//           last part ("-41") for each size: MA6025-2-B-20-38.
+//   SIZES = "35,36,37", "35-42" or both ("34, 36-42"), exactly as in Shopify.
+//   No SIZES: the row is one sticker with the SKU as it is (e.g. a bag).
+// Old sheets (one row per sticker, no SIZES column) still work: rows of the same
+// design (same SKU without the size, same name and price) are put together.
+
+var designs = [];         // in sheet order
+var skuIndex = {};        // sticker SKU -> { d: design, size }
+var stickerCache = {};    // sticker SKU -> checked sticker row
+var printList = [];       // [{ sku, copies }] in the order they were picked
+var activeType = 'All';
+var PRINT_KEY = 'displayLabel.printList.v1';
+var MAX_SIZES = 40;       // a range longer than this is a typing mistake
+var LIST_MAX = 300;       // shoes shown at once (more makes a phone slow)
+
+// Filter buttons, worked out from the shoe name (first match wins).
+var TYPES = [
+  ['Bags', /\bbags?\b|carry-on|pouch|wallet|tote/i],
+  ['Kids', /\bkids?\b|\bmini\b/i],
+  ['Wedges', /wedge/i],
+  ['Mules', /\bmules?\b|\bslides?\b/i],
+  ['Sandals', /sandal/i],
+  ['Sneakers', /sneaker|trainer/i],
+  ['Heels', /heel|pump|slingback/i],
+  ['Flats', /flat|ballerina|loafer|mary jane|moccasin/i]
+];
+
+function typeOf(d) {
+  if (/^MC-KK/i.test(d.base || d.single || '')) return 'Kids';
+  for (var i = 0; i < TYPES.length; i++) if (TYPES[i][1].test(d.shoe)) return TYPES[i][0];
+  return 'Others';
+}
+
+// "34, 36-42" -> { sizes: ['34', '36', ..., '42'], bad: [] }
+function parseSizes(text) {
+  var t = String(text || '').replace(/\s*(?:-|–|—|\bto\b)\s*/gi, '-');
+  var sizes = [], bad = [];
+  t.split(/[,;\/\s]+/).forEach(function(tok) {
+    if (!tok) return;
+    var m;
+    if (/^\d{1,3}$/.test(tok)) sizes.push(+tok);
+    else if ((m = tok.match(/^(\d{1,3})-(\d{1,3})$/)) && +m[1] <= +m[2] && +m[2] - +m[1] < MAX_SIZES) {
+      for (var s = +m[1]; s <= +m[2]; s++) sizes.push(s);
+    } else bad.push(tok);
+  });
+  var seen = {};
+  sizes = sizes.filter(function(s) { return !seen[s] && (seen[s] = true); })
+    .sort(function(a, b) { return a - b; }).map(String);
+  return { sizes: sizes, bad: bad };
+}
+
+function newDesign(r, base) {
+  return { rows: [r.sheetRow], sheetRow: r.sheetRow, shoe: r.shoe, price: r.price, sku: r.sku,
+           base: base, sizes: [], single: null, errors: [], warnings: [] };
+}
+
+function skuFor(d, size) { return d.single != null ? d.single : d.base + '-' + size; }
+function stickerSkus(d) { return d.single != null ? [d.single] : d.sizes.map(function(s) { return skuFor(d, s); }); }
+
+// Returns true if at least one shoe loaded.
+function loadData(results, source) {
+  designs = []; skuIndex = {}; stickerCache = {};
+  if (results.errors.length && !results.data.length) {
+    setSheetStatus('Could not read the list: ' + results.errors[0].message, 'error');
+    refreshUI();
+    return false;
+  }
+  var headers = results.meta.fields || [];
+  var colFor = {};
+  FIELDS.forEach(function(f) {
+    for (var i = 0; i < headers.length; i++) {
+      if (f.aliases.indexOf(normHeader(headers[i])) !== -1) { colFor[f.key] = headers[i]; break; }
+    }
+  });
+  var missing = FIELDS.filter(function(f) { return f.required && !colFor[f.key]; });
+  if (missing.length) {
+    setSheetStatus('Could not find the ' + missing.map(function(f) { return f.label; }).join(' and ') +
+      (missing.length > 1 ? ' columns' : ' column') + '. Row 1 of the sheet must be: SHOE, PRICE, SKU, SIZES.', 'error');
+    refreshUI();
+    return false;
+  }
+
+  var groups = {};
+  results.data.forEach(function(raw, i) {
+    var r = { sheetRow: i + 2 };   // row 1 is the header
+    FIELDS.forEach(function(f) {
+      r[f.key] = colFor[f.key] ? String(raw[colFor[f.key]] == null ? '' : raw[colFor[f.key]]).trim() : '';
+    });
+    if (!r.shoe && !r.price && !r.sku && !r.sizes) return;   // blank line
+    var m = r.sku.match(/^(.+)-(\d{1,3})$/);
+    var d;
+    if (r.sizes) {
+      var p = parseSizes(r.sizes);
+      d = newDesign(r, m ? m[1] : r.sku);
+      d.sizes = p.sizes;
+      p.bad.forEach(function(tok) {
+        d.errors.push(/\d[.,]\d/.test(tok)
+          ? 'SIZES has "' + tok + '". Type the size exactly as in Shopify, a whole number (e.g. 34)'
+          : 'SIZES has "' + tok + '", which is not a size. Use numbers like 35, 36 or a range like 35-42');
+      });
+      if (d.sizes.length && r.sku) {
+        if (!m) d.warnings.push('SKU "' + r.sku + '" has no size at the end. Stickers will say ' + skuFor(d, d.sizes[0]) + '. Is that right?');
+        else if (d.sizes.indexOf(String(+m[2])) === -1) d.warnings.push('SKU ends in "-' + m[2] + '", which is not in SIZES. Stickers will say ' + skuFor(d, d.sizes[0]) + '. Is that right?');
+      }
+      designs.push(d);
+    } else if (m && /^\d{2}$/.test(m[2])) {
+      var key = m[1].toUpperCase() + '|' + r.shoe + '|' + r.price;
+      d = groups[key];
+      if (!d) { d = groups[key] = newDesign(r, m[1]); designs.push(d); }
+      else d.rows.push(r.sheetRow);
+      if (d.sizes.indexOf(m[2]) === -1) d.sizes.push(m[2]);
+      d.sizes.sort(function(a, b) { return a - b; });
+    } else {
+      d = newDesign(r, null);
+      d.single = r.sku;
+      designs.push(d);
+    }
+  });
+
+  designs.forEach(checkDesign);
+
+  // The same shoe on two rows: one of them is probably a mistake.
+  var byBase = {};
+  designs.forEach(function(d) { var k = (d.base || d.single || '').toUpperCase(); if (k) (byBase[k] = byBase[k] || []).push(d); });
+  Object.keys(byBase).forEach(function(k) {
+    var list = byBase[k];
+    if (list.length < 2) return;
+    list.forEach(function(d) {
+      var others = list.filter(function(o) { return o !== d; }).map(function(o) { return o.rows.join(', '); }).join(', ');
+      var same = list.every(function(o) { return o.shoe === d.shoe && o.priceText === d.priceText; });
+      d.warnings.push(same ? 'This shoe is also on row ' + others + '. Use one row with all sizes'
+                           : 'The same SKU is on row ' + others + ' with a different name or price. Which one is right?');
+    });
+  });
+
+  designs.forEach(function(d) {
+    stickerSkus(d).forEach(function(sku) {
+      if (!skuIndex[sku]) skuIndex[sku] = { d: d, size: d.single != null ? null : sku.slice(d.base.length + 1) };
+    });
+  });
+
+  var sizes = designs.reduce(function(n, d) { return n + stickerSkus(d).length; }, 0);
+  var bad = designs.filter(function(d) { return d.errors.length; }).length;
+  if (!designs.length) {
+    setSheetStatus('The sheet has no shoes yet. Add one row per shoe in the Google Sheet, wait 1–2 minutes, then press Load (⚙).', 'error');
+  } else {
+    setSheetStatus('✓ ' + plural(designs.length, 'shoe', 'shoes') + ' · ' + plural(sizes, 'size', 'sizes') + ' loaded' +
+      (bad ? ' · ' + plural(bad, 'row needs', 'rows need') + ' fixing in the sheet' : ''), bad ? '' : 'success');
+  }
+  loadPrintList();
+  refreshUI();
+  return true;
+}
+
+// Checks that are the same for every size of a design (price, name, SKU style).
+function checkDesign(d) {
+  d.type = typeOf(d);
+  var first = stickerSkus(d)[0] || d.sku;
+  var probe = { sheetRow: d.sheetRow, shoe: d.shoe, price: d.price, sku: first, copies: '' };
+  checkRow(probe, true);   // true: the barcode is made later, when a size is picked
+  d.priceText = probe.priceText;
+  d.errors = d.errors.concat(probe.errors);
+  d.warnings = probe.warnings.concat(d.warnings);
+  d.find = (d.shoe + ' ' + (d.base || d.single || '') + ' ' + d.priceText + ' ' + d.type).toLowerCase();
+}
+
+// One sticker (one size) of a design, checked, with its barcode or QR code.
+function stickerFor(sku) {
+  if (!stickerCache[sku]) {
+    var info = skuIndex[sku];
+    var d = info.d;
+    var r = { sheetRow: d.sheetRow, shoe: d.shoe, price: d.price, sku: sku, copies: '' };
+    checkRow(r);
+    r.design = d;
+    r.size = info.size;
+    stickerCache[sku] = r;
+  }
+  return stickerCache[sku];
+}
+
+function stickerCount(list) { return list.reduce(function(n, r) { return n + r.copiesN; }, 0); }
+
+// ─── PRINT LIST (remembered on this phone until printed) ─────
+
+function loadPrintList() {
+  var saved = [];
+  try { saved = JSON.parse(localStorage.getItem(PRINT_KEY) || '[]'); } catch (e) {}
+  printList = (Array.isArray(saved) ? saved : []).filter(function(p) {
+    return p && skuIndex[p.sku] && !skuIndex[p.sku].d.errors.length;
+  }).map(function(p) { return { sku: p.sku, copies: Math.min(MAX_COPIES, Math.max(1, Math.round(+p.copies) || 1)) }; });
+}
+
+function savePrintList() {
+  try { localStorage.setItem(PRINT_KEY, JSON.stringify(printList)); } catch (e) {}
+}
+
+function listIndex(sku) {
+  for (var i = 0; i < printList.length; i++) if (printList[i].sku === sku) return i;
+  return -1;
+}
+
+function toggleSize(sku, btn) {
+  var i = listIndex(sku);
+  if (i === -1) printList.push({ sku: sku, copies: 1 });
+  else printList.splice(i, 1);
+  savePrintList();
+  if (btn) {
+    var on = i === -1;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', on);
+    if (btn.classList.contains('one')) btn.textContent = on ? '✓ Added' : '+ Add';
+    var card = btn.closest('.card');
+    card.classList.toggle('picked', !!card.querySelector('.size.on'));
+  }
+  renderFilters();
+  renderBar();
+  if (activeType === 'Picked' && !printList.length) { activeType = 'All'; renderFilters(); renderList(); }
+}
+
+function totalCopies() { return printList.reduce(function(n, p) { return n + p.copies; }, 0); }
+
+function renderBar() {
+  var n = totalCopies();
+  var shoes = {};
+  printList.forEach(function(p) { shoes[skuIndex[p.sku].d.sheetRow] = 1; });
+  var nShoes = Object.keys(shoes).length;
+  document.getElementById('barCount').innerHTML = n
+    ? escHtml(plural(n, 'sticker', 'stickers')) + '<small>' + escHtml(plural(nShoes, 'shoe', 'shoes')) + ' · tap Print to check and download</small>'
+    : 'No stickers yet<small>Tap a size to add a sticker</small>';
+  document.getElementById('openPrint').disabled = !n;
+}
+
+// ─── SEARCH, FILTERS AND THE SHOE LIST ───────────────────────
+
+function searchWords() {
+  return document.getElementById('search').value.toLowerCase().split(/\s+/).filter(Boolean);
+}
+
+function needsCheck(d) { return d.errors.length || d.warnings.length; }
+
+function renderFilters() {
+  var box = document.getElementById('filters');
+  var counts = { All: designs.length };
+  designs.forEach(function(d) { counts[d.type] = (counts[d.type] || 0) + 1; });
+  var picked = printList.length;
+  var check = designs.filter(needsCheck).length;
+  var names = ['All'].concat(TYPES.map(function(t) { return t[0]; }), ['Others']).filter(function(n) { return counts[n]; });
+  if (picked) names.push('Picked');
+  if (check) names.push('Check');
+  if (names.indexOf(activeType) === -1) activeType = 'All';
+  box.innerHTML = names.map(function(n) {
+    var label = n === 'Picked' ? 'In my list' : n === 'Check' ? 'Check sheet' : n;
+    var count = n === 'Picked' ? picked : n === 'Check' ? check : counts[n];
+    return '<button type="button" class="chip' + (n === 'Check' ? ' check' : '') + (n === activeType ? ' on' : '') +
+      '" data-type="' + n + '" aria-pressed="' + (n === activeType) + '">' + label + '<span class="n">' + count + '</span></button>';
+  }).join('');
+}
+
+function renderList() {
+  var words = searchWords();
+  var shown = designs.filter(function(d) {
+    if (activeType === 'Picked') { if (!stickerSkus(d).some(function(s) { return listIndex(s) !== -1; })) return false; }
+    else if (activeType === 'Check') { if (!needsCheck(d)) return false; }
+    else if (activeType !== 'All' && d.type !== activeType) return false;
+    return words.every(function(w) { return d.find.indexOf(w) !== -1; });
+  });
+  var html = shown.slice(0, LIST_MAX).map(cardHtml).join('');
+  if (shown.length > LIST_MAX) html += '<p class="more-note">Showing ' + LIST_MAX + ' of ' + shown.length + '. Type in the search box to find the others.</p>';
+  document.getElementById('list').innerHTML = html;
+  var empty = document.getElementById('emptyNote');
+  empty.hidden = shown.length > 0;
+  empty.textContent = !designs.length ? 'No shoes yet. The list loads from the Google Sheet.'
+    : words.length ? 'No shoes match "' + words.join(' ') + '". Try another word, or tap All.'
+    : 'No shoes here. Tap All.';
+}
+
+function cardHtml(d) {
+  var skus = stickerSkus(d);
+  var bad = d.errors.length > 0;
+  var anyOn = false;
+  var sizes = skus.map(function(sku, i) {
+    var on = listIndex(sku) !== -1;
+    if (on) anyOn = true;
+    var label = d.single != null ? (on ? '✓ Added' : '+ Add') : d.sizes[i];
+    return '<button type="button" class="size' + (d.single != null ? ' one' : '') + (on ? ' on' : '') + '" data-sku="' + escHtml(sku) +
+      '" aria-pressed="' + on + '"' + (bad ? ' disabled' : '') + ' aria-label="' + escHtml(d.shoe + (d.single != null ? '' : ', size ' + d.sizes[i])) + '">' + escHtml(label) + '</button>';
+  }).join('');
+  var notes = '';
+  if (bad) notes += '<div class="note bad"><p><strong>Fix in the sheet (row ' + d.rows.join(', ') + '):</strong></p>' + d.errors.map(function(e) { return '<p>' + escHtml(e) + '</p>'; }).join('') + '</div>';
+  if (d.warnings.length) notes += '<div class="note warn">' + d.warnings.map(function(e) { return '<p>' + escHtml(e) + '</p>'; }).join('') + '</div>';
+  return '<div class="card' + (anyOn ? ' picked' : '') + '">' +
+    '<div class="card-top"><div class="name">' + escHtml(d.shoe || '(no name)') + '</div><div class="price">' + escHtml(d.priceText || '') + '</div></div>' +
+    '<div class="meta">' + escHtml(d.single != null ? d.single : d.base + '-…') + '</div>' +
+    '<div class="sizes">' + sizes + '</div>' + notes + '</div>';
+}
+
+// ─── PANELS (print list, settings) ───────────────────────────
+// Opening a panel adds a browser history step, so the phone's Back button closes it.
+
+function openPanel(id) {
+  hidePanels();
+  document.getElementById(id).hidden = false;
+  document.body.classList.add('locked');
+  try { history.pushState({ panel: id }, ''); } catch (e) {}
+  document.getElementById(id).scrollTop = 0;
+  if (id === 'printPanel') { setStatus(''); document.getElementById('doneBtn').hidden = true; renderPrintList(); }
+  if (id === 'settingsPanel') renderTry();
+}
+
+function hidePanels() {
+  ['printPanel', 'settingsPanel'].forEach(function(id) { document.getElementById(id).hidden = true; });
+  document.body.classList.remove('locked');
+}
+
+function closePanel() {
+  if (history.state && history.state.panel) history.back();
+  else hidePanels();
+}
+
+window.addEventListener('popstate', function() {
+  hidePanels();
+  renderList();   // sizes may have been removed in the print list
+});
+
+// ─── THE PRINT LIST SCREEN ───────────────────────────────────
+
+function renderPrintList() {
+  var box = document.getElementById('printItems');
+  box.innerHTML = '';
+  var st = getSettings(), measure = pdfMeasure();
+  var width = Math.max(260, Math.min(420, (box.clientWidth || 340) - 26));
+  printList.forEach(function(p, i) {
+    var r = stickerFor(p.sku);
+    var d = r.design;
+    var item = document.createElement('div');
+    item.className = 'item' + (r.errors.length ? ' bad' : '');
+    var canvas = document.createElement('canvas');
+    item.appendChild(canvas);
+    var L = drawSticker(canvas, r, width);
+    var kind = !L.bc ? 'no code' : L.bc.kind === 'qr' ? 'QR code' : 'Barcode';
+    var row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML =
+      '<div class="item-info"><b>' + escHtml(d.shoe || '(no name)') + '</b><span>' +
+        escHtml((r.size ? 'Size ' + r.size + ' · ' : '') + kind + ' · ' + r.code) + '</span></div>' +
+      '<div class="stepper"><button type="button" aria-label="One less" data-act="minus"' + (p.copies <= 1 ? ' disabled' : '') + '>&minus;</button>' +
+        '<output aria-label="Copies">' + p.copies + '</output>' +
+        '<button type="button" aria-label="One more" data-act="plus"' + (p.copies >= MAX_COPIES ? ' disabled' : '') + '>+</button></div>' +
+      '<button type="button" class="remove" aria-label="Remove" data-act="remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>';
+    row.addEventListener('click', function(e) {
+      var b = e.target.closest('button[data-act]');
+      if (!b || b.disabled) return;
+      if (b.dataset.act === 'remove') { printList.splice(i, 1); savePrintList(); renderPrintList(); renderBar(); renderFilters(); return; }
+      p.copies = Math.min(MAX_COPIES, Math.max(1, p.copies + (b.dataset.act === 'plus' ? 1 : -1)));
+      savePrintList();
+      row.querySelector('output').textContent = p.copies;
+      row.querySelector('[data-act="minus"]').disabled = p.copies <= 1;
+      row.querySelector('[data-act="plus"]').disabled = p.copies >= MAX_COPIES;
+      renderPrintTotals();
+      renderBar();
+    });
+    item.appendChild(row);
+
+    var notes = [];
+    if (r.errors.length) notes.push('<div class="note bad"><p><strong>Will not print.</strong> Fix row ' + d.rows.join(', ') + ' in the sheet:</p>' +
+      r.errors.map(function(e) { return '<p>' + escHtml(e) + '</p>'; }).join('') + '</div>');
+    var soft = L.notes.concat(L.cuts.map(function(c) { return c.field + ' is too long to fit, "' + c.dropped + '" will not print. Shorten it in the sheet'; }));
+    if (soft.length) notes.push('<div class="note warn">' + soft.map(function(e) { return '<p>' + escHtml(e) + '</p>'; }).join('') + '</div>');
+    if (!r.errors.length) notes.push('<details><summary>Code details</summary><div class="barcode-specs">' + specsHtml(r, L) + '</div></details>');
+    item.insertAdjacentHTML('beforeend', notes.join(''));
+    box.appendChild(item);
+  });
+  if (!printList.length) box.innerHTML = '<p class="empty">Your list is empty.<br>Go back and tap the sizes you want to print.</p>';
+  document.getElementById('clearBtn').hidden = !printList.length;
+  renderPrintTotals();
+}
+
+function readyItems() {
+  return printList.filter(function(p) { return !stickerFor(p.sku).errors.length; });
+}
+
+function renderPrintTotals() {
+  var ready = readyItems();
+  var n = ready.reduce(function(s, p) { return s + p.copies; }, 0);
+  var bad = printList.length - ready.length;
+  document.getElementById('printCount').textContent = printList.length ? '(' + totalCopies() + ')' : '';
+  var btn = document.getElementById('generateBtn');
+  btn.disabled = !n;
+  btn.textContent = n ? 'Download PDF · ' + plural(n, 'sticker', 'stickers') : 'Download PDF';
+  document.getElementById('fixNote').textContent = bad ? plural(bad, 'sticker is', 'stickers are') + ' left out until the sheet is fixed (red).' : '';
+}
+
+function clearPrintList(noAsk) {
+  if (!printList.length) return;
+  if (!noAsk && !window.confirm('Remove all ' + plural(totalCopies(), 'sticker', 'stickers') + ' from your list?')) return;
+  printList = [];
+  savePrintList();
+  renderPrintList();
+  renderBar();
+  renderFilters();
+  renderList();
+  document.getElementById('doneBtn').hidden = true;
+  setStatus('');
+}
+
+async function downloadPdf() {
+  var ready = readyItems();
+  if (!ready.length) { setStatus('Nothing to print yet. Go back and tap the sizes you want.', 'error'); return; }
   var btn = document.getElementById('generateBtn');
   var progressContainer = document.getElementById('progressContainer');
   var progressBar = document.getElementById('progressBar');
-  var list = selection(), ready = readyRows(list);
-  if (!ready.length) { setStatus('Nothing to print yet. Load your list (step 1) and fix the red rows (step 2).', 'error'); return; }
-
   btn.disabled = true;
   btn.textContent = 'Making PDF...';
   progressContainer.style.display = 'block';
   progressBar.style.width = '0%';
   setStatus('');
   try {
-    var doc = await buildPdf(ready, function(done, total) { progressBar.style.width = (done / total * 100) + '%'; });
-    var sel = document.getElementById('shoeSelect').value;
-    var who = sel === '__ALL__' ? 'ALL' : sel.replace(/[^A-Za-z0-9_-]+/g, '_');
-    doc.save('display-labels-' + who + '-' + today() + '.pdf');
-    var left = list.length - ready.length;
-    setStatus('✓ PDF downloaded: ' + plural(stickerCount(ready), 'sticker', 'stickers') + '. It is in your Downloads.' +
-      (left ? ' ' + plural(left, 'row was', 'rows were') + ' left out, see step 2.' : ''), 'success');
+    var list = ready.map(function(p) { return Object.assign({}, stickerFor(p.sku), { copiesN: p.copies }); });
+    var doc = await buildPdf(list, function(done, total) { progressBar.style.width = (done / total * 100) + '%'; });
+    var now = new Date();
+    doc.save('display-stickers-' + today() + '-' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + '.pdf');
+    setStatus('✓ PDF downloaded: ' + plural(stickerCount(list), 'sticker', 'stickers') + '. It is in your Downloads. Now open it in the NIIMBOT app.', 'success');
+    document.getElementById('doneBtn').hidden = false;
   } catch (e) {
     console.error(e);
     setStatus('Error: ' + e.message, 'error');
   } finally {
-    updateBtn();
-    setTimeout(function() { progressContainer.style.display = 'none'; }, 2000);
+    renderPrintTotals();
+    setTimeout(function() { progressContainer.style.display = 'none'; }, 1500);
   }
 }
 
-// Test print: one copy of the sticker shown in the preview.
-async function downloadSingle() {
-  var r = tryRow || selection()[previewIdx];
-  if (!r || r.errors.length) return;
-  try {
-    var doc = await buildPdf([Object.assign({}, r, { copiesN: 1 })]);
-    doc.save('display-label-' + r.code + '.pdf');
-    setStatus('✓ Test sticker downloaded (' + r.code + '). Print it and scan it with Stock check.', 'success');
-  } catch (e) {
-    console.error(e);
-    setStatus('Error: ' + e.message, 'error');
+// Measurements of a sticker's code, so it can be checked against spec.
+function specsHtml(r, L) {
+  var bc = L.bc, barH = L.barBottom - L.barTop;
+  function row(label, val, cls) {
+    return '<div class="spec-row"><span>' + label + '</span><span class="val ' + (cls || '') + '">' + val + '</span></div>';
   }
+  var check = bc.check === 'ok'
+    ? row('Read-back check', '✓ reads ' + escHtml(r.code), 'ok')
+    : row('Read-back check', 'could not run (no internet?) — test-print one first', 'soft');
+  if (bc.kind === 'qr') {
+    return '<div class="spec-title">QR code (SKU too long for a barcode)</div>' +
+      row('Encodes (SKU)', escHtml(r.code)) +
+      row('Square size <span style="color:#aaa">(min 0.375mm)</span>', L.qr.m.toFixed(3) + 'mm = ' + L.qr.dots + ' printer dots ✓', 'ok') +
+      row('QR size', L.qr.size.toFixed(1) + ' × ' + L.qr.size.toFixed(1) + 'mm') +
+      row('Quiet zone <span style="color:#aaa">(4 squares)</span>', L.qr.quiet.toFixed(2) + 'mm ✓', 'ok') + check;
+  }
+  return '<div class="spec-title">Barcode — Code 128</div>' +
+    row('Encodes (SKU)', escHtml(r.code)) +
+    row('Narrow bar width <span style="color:#aaa">(min 0.25mm)</span>', bc.X.toFixed(3) + 'mm = ' + bc.xDots + ' printer dots ✓', 'ok') +
+    row('Bar height <span style="color:#aaa">(min ' + MIN_BAR_H + 'mm)</span>', barH.toFixed(1) + 'mm ' + (barH >= MIN_BAR_H ? '✓' : '✗'), barH >= MIN_BAR_H ? 'ok' : 'bad') +
+    row('Quiet zone, each end <span style="color:#aaa">(10 bars)</span>', bc.quiet.toFixed(2) + 'mm ✓', 'ok') +
+    row('Barcode length', (bc.codeW + 2 * bc.quiet).toFixed(1) + ' of ' + (LABEL_W - 2 * EDGE) + 'mm') + check;
+}
+
+// ─── TRY A STICKER (settings) ────────────────────────────────
+
+var TRY_EXAMPLE = { shoe: 'Hana OG Flats in White', price: '148.00', sku: '1800001001-35' };
+
+function renderTry() {
+  var r = {
+    sheetRow: 0,
+    shoe: document.getElementById('tryShoe').value.trim() || TRY_EXAMPLE.shoe,
+    price: document.getElementById('tryPrice').value.trim() || TRY_EXAMPLE.price,
+    sku: document.getElementById('trySku').value.trim() || TRY_EXAMPLE.sku,
+    copies: ''
+  };
+  checkRow(r);
+  var canvas = document.getElementById('tryCanvas');
+  var L = drawSticker(canvas, r, Math.max(260, Math.min(420, (canvas.parentNode.clientWidth || 340) - 2)));
+  var notes = r.errors.length ? '<div class="note bad">' + r.errors.map(function(e) { return '<p>' + escHtml(e) + '</p>'; }).join('') + '</div>' : '';
+  var soft = r.warnings.concat(L.notes);
+  if (soft.length) notes += '<div class="note warn">' + soft.map(function(e) { return '<p>' + escHtml(e) + '</p>'; }).join('') + '</div>';
+  document.getElementById('tryNote').innerHTML = notes;
+}
+
+// Called when a sticker setting changes.
+function updatePreview() {
+  if (!document.getElementById('printPanel').hidden) renderPrintList();
+  if (!document.getElementById('settingsPanel').hidden) renderTry();
+}
+
+function refreshUI() {
+  renderFilters();
+  renderList();
+  renderBar();
 }
 
 // ─── START ──────────────────────────────────────────────────
-// Put the sheet link in the box and load it straight away.
+
 (function() {
   loadSettings();
+  var search = document.getElementById('search'), clearBtn = document.getElementById('searchClear');
+  search.addEventListener('input', function() { clearBtn.hidden = !search.value; renderList(); });
+  clearBtn.addEventListener('click', function() { search.value = ''; clearBtn.hidden = true; renderList(); search.focus(); });
+  document.getElementById('filters').addEventListener('click', function(e) {
+    var b = e.target.closest('.chip');
+    if (!b) return;
+    activeType = b.dataset.type;
+    renderFilters();
+    renderList();
+    window.scrollTo(0, 0);
+  });
+  document.getElementById('list').addEventListener('click', function(e) {
+    var b = e.target.closest('button[data-sku]');
+    if (b && !b.disabled) toggleSize(b.dataset.sku, b);
+  });
   document.getElementById('sheetUrl').value = getSavedSheetUrl() || USUAL_SHEET_URL;
   showSheetOther();
   refreshUI();

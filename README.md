@@ -40,11 +40,13 @@ flowchart LR
   A[Google Sheet] --> B[This website] --> C[PDF] --> D[NIIMBOT app] --> E[Sticker]
 ```
 
-1. Staff type the shoes into the **Google Sheet** (one row per sticker).
-2. Open the website. The list **loads by itself**.
-3. Look at the preview. Fix any row in **red** in the sheet, wait 1–2 minutes, then press **Load**.
-4. Press **Download PDF**.
+1. The **Google Sheet** lists every shoe design **once, with all its sizes**. Staff do not edit it to print.
+2. Open the website on the phone. The list **loads by itself**.
+3. **Search** or tap a **filter** (Heels, Flats, …), then **tap the sizes** you need. They go into the print list.
+4. Tap **Print**: check the stickers, change copies, press **Download PDF**.
 5. Open the PDF in the **NIIMBOT** app and print. Delete the extra **"Double-click to Edit"** box first.
+
+The phone remembers the print list until you print. NEW SKUs (numbers) get a barcode, OLD SKUs (letters) get a QR code.
 
 Print **one** sticker first, scan it with Stock check, then print the rest.
 
@@ -54,10 +56,13 @@ Row 1 must be:
 
 | Column | What to type | Example |
 |---|---|---|
-| **SHOE** | Shoe name | Lara Slingback Heels |
-| **PRICE** | Price in RM, numbers only | 208.00 |
-| **SKU** | The SKU, exactly as in Shopify. This is the barcode. | 1800044001-36 |
-| COPIES *(optional)* | How many stickers (empty = 1) | 2 |
+| **SHOE** | Shoe name | Bliss Block Heels in Black |
+| **PRICE** | Price in RM, numbers only | 178.20 |
+| **SKU** | The SKU of **any one size**, exactly as in Shopify. The website swaps the size at the end for each sticker (`…-41` → `…-38`). | MA6025-2-B-20-41 |
+| **SIZES** | All sizes, exactly as in Shopify (whole numbers). Commas and/or ranges. Empty = one sticker with the SKU as it is (e.g. a bag). | 34, 35-42 |
+
+- Half sizes: type them as Shopify does (Shopify writes `34`, not `34.5`). `34.5` shows a red message.
+- An old sheet with one row per sticker and no SIZES column still works: rows of the same shoe are put together.
 
 The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, so it is always there.
 
@@ -71,15 +76,12 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 
 | Part | What it does |
 |---|---|
-| **Your sticker list** | Loads the team sheet by itself. Or paste another sheet link, or drop a CSV file. |
-| **Print stickers for** | Print everything, or only one shoe. |
-| **Template** | **Standard** (name, price and barcode) or **Barcode only** (biggest bars). |
-| **Sticker settings** | **Name:** size (7–14pt), bold, ALL CAPITALS, add size from SKU, shrink long names to fit. **Price:** size, bold, bottom right or top right. **Barcode:** line above barcode, SKU text under it. Remembered on this computer. **Reset to default** goes back to the standard sticker. |
-| **Try a name** | Type any name, price and SKU to see it on a sticker at once, without changing the sheet. Not added to the PDF. |
-| **Preview** | Every sticker, exactly as it prints. **Download just this sticker** for a test print. |
-| **Show all stickers** | Every sticker on one screen. Red = will not print, yellow = please check. Click one to see it big. |
-| **Barcode measurements** | Bar width, bar height, quiet zone, density and the read-back check, with ✓ or ✗. |
-| **Red / yellow lists** | Red rows will not print until fixed. Yellow rows print, but have a look. Click a row to see it. |
+| **Search** | Type part of a shoe name or SKU. The list filters as you type. |
+| **Filter buttons** | All, Kids, Wedges, Mules, Sandals, Heels, Flats, Bags, Others (from the shoe name). **In my list** = shoes in the print list. **Check sheet** = rows with a red or yellow message. |
+| **Shoe cards** | Name, price, SKU and a button for every size. Tap to add / remove. Red message = fix that row in the sheet (sizes cannot be picked). |
+| **Bottom bar** | How many stickers are in the print list, and **Print ▸**. |
+| **Print list** | Every sticker exactly as it prints, copies **− / +**, remove **✕**, **Code details** (bar width, QR square size, read-back check), **Download PDF**, the NIIMBOT steps. |
+| **⚙ Settings** | Sheet link (**Load**, **Use the usual sheet**, open a CSV file), **Sticker design** (Standard / Code only; name, price and code options; **Reset to default**), **Try a sticker** (any name, price and SKU, not printed). Remembered on this phone. |
 
 ## What the website checks
 
@@ -88,7 +90,9 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 | PRICE and SKU are filled in | Red: will not print |
 | PRICE is a number (e.g. 208.00) | Red: will not print |
 | SKU has only letters, numbers and "-", no spaces | Red: will not print |
-| The same SKU has the same shoe and price on every row | Red: will not print |
+| SIZES are whole numbers or ranges (`34, 35-42`) | Red: that shoe cannot be picked |
+| The SKU ends with one of its SIZES | Yellow: shows what the stickers will say |
+| The same shoe is not on two rows | Yellow: check which row is right |
 | The barcode fits on the sticker (if not, a QR code is used instead) | – |
 | The barcode reads back correctly (a barcode reader checks it) | Red: will not print |
 | SHOE is empty | Yellow: prints with no name |
@@ -118,11 +122,12 @@ Built from two earlier tools: the [Photoshoot Label Generator](https://itmachino
 |---|---|
 | `README.md` | This page. Start here. |
 | `index.html` | The whole website, in one file. |
-| `sheet-template.csv` | The columns the Google Sheet must have. |
+| `sheet-template.csv` | The columns the Google Sheet must have (SHOE, PRICE, SKU, SIZES). |
 | `test-data/test-stickers.csv` | 6 test stickers, for the print test. |
 | `test-data/test-stickers.pdf` | Those 6 stickers, ready to print. |
 | `test-data/bad-rows.csv` | Rows with mistakes, to check the website catches them. |
 | `test-data/qr-stickers.csv` | 4 long SKUs (QR code) and 1 short SKU (barcode), for the QR print test. |
+| `test-data/sizes-test.csv` | SIZES examples and mistakes (`34.5`, `abc`, SKU without size, a bag), to check the messages. |
 
 **Test stickers are for testing only.** Their prices are examples. Do not put them on shoes.
 
@@ -144,8 +149,8 @@ Pass = every box ticked, each scan works the first time.
 ## Changing the website
 
 1. Edit `index.html`.
-2. Open it in a browser. Drop `test-data/test-stickers.csv` on the CSV box.
-3. Check the barcode measurements all show ✓.
+2. Open it in a browser. In ⚙ Settings, open `test-data/test-stickers.csv` (or `sizes-test.csv`).
+3. Tap some sizes, tap **Print**, open **Code details**: every value shows ✓.
 4. Save to GitHub:
 
    PowerShell (Windows)

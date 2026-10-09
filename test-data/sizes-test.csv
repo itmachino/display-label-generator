@@ -1,0 +1,7 @@
+SHOE,PRICE,SKU,SIZES
+Bliss Block Heels in Black,178.20,MA6025-2-B-20-41,"34, 35-42"
+Half Size Test,100,MA6025-2-B-20-41,"34.5, 35"
+Carry To The Coast Eco Bag,38.00,1810004014,
+No Size In SKU Test,100,MA6025-2-B-20,35-37
+Bad Size Test,100,1800001001-35,"35, abc"
+Hana OG Flats in White,148.00,1800001001-35,35 to 40
