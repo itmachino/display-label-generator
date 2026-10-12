@@ -76,12 +76,31 @@ The team sheet is built into the website, in `USUAL_SHEET_URL` in `index.html`, 
 
 | Part | What it does |
 |---|---|
-| **Search** | Type part of a shoe name or SKU. The list filters as you type. Add a size to find shoes that have it: `bliss 38` (size 38 is circled). |
+| **Search** | Type part of a shoe name or SKU. The list filters as you type, best match first. See "How the search works" below. |
 | **Filter buttons** | All, Kids, Wedges, Mules, Sandals, Heels, Flats, Bags, Others (from the shoe name). **In my list** = shoes in the print list. **Check sheet** = rows with a red or yellow message. |
-| **Shoe cards** | Name, price, SKU and a button for every size. Tap to add / remove (a message shows "Added …" with **Undo**). A row with a sheet problem says "Can't print yet"; the details are under **Check sheet**. |
+| **Shoe cards** | Name, price, SKU and a button for every size. The words you searched are highlighted. Tap a size to add / remove it (a message shows "Added …" with **Undo**). A picked size is **solid pink with white text**; a size you only searched for is **outlined**. A row with a sheet problem says "Can't print yet"; the details are under **Check sheet**. |
 | **Bottom bar** | How many stickers are in the print list, and **Print ▸**. |
 | **Print list** | Every sticker exactly as it prints, copies **− / +**, remove **✕**, **Code details**, **Sticker settings** (name, **Show size**, **Show price**, code options, Reset to default), **Download PDF** (always visible at the bottom), the NIIMBOT steps with pictures. |
 | **⚙ Settings** | Sheet link (**Load**, **Use the usual sheet**, open a CSV file), **Sticker design** (Standard / Code only; name, price and code options; **Reset to default**), **Try a sticker** (any name, price and SKU, not printed). Remembered on this phone. |
+
+## How the search works
+
+| You type | You get | Example |
+|---|---|---|
+| Part of a name | Shoes with that word, best match first | `bliss`, `block heels` |
+| Name + size | Only shoes that have that size. The size is **outlined** | `bliss 38`, `size 38 bliss`, `sz38`, `s38` |
+| A full SKU (dashes and capitals do not matter) | That one shoe, its size outlined | `MA6025-2-B-20-38`, `ma60252b2038` |
+| A SKU without the size | That shoe first | `1800037001` |
+| A price | Shoes with that price | `178`, `rm178` |
+| Joined words | Works as two words | `maryjane` = Mary Jane |
+| A spelling mistake | Fixed **only when one word is clearly the closest**. A note says what was changed | `balerina` → ballerina |
+| An unsure spelling | Nothing is swapped. It shows **Did you mean** buttons (up to 3), most-used shoe words first | `sandle` → sandals, saddle |
+| A Malay word | The English word is searched. A note says so | `kasut` = shoes, `beg` = bags |
+
+- **Order of results:** the exact SKU, then the exact name, then names that start with your words, then whole-word matches, then partial matches. Same score = the order of the sheet.
+- **`kasut` / `shoes`** means every product that has sizes. Bags, phone cases and charms are not included.
+- **Add a word:** one line in `SEARCH_ALIASES` in `index.html` (e.g. `tumit: 'heels'`). Only add words you are sure of.
+- **Speed:** the shoes are indexed once when the sheet loads. Searches are remembered. The list redraws 80 ms after the last key (`SEARCH_DELAY`) and shows 30 shoes at a time (`PAGE_SIZE`); the rest load as you scroll, or with **Show more**.
 
 ## What the website checks
 
@@ -129,6 +148,10 @@ Built from two earlier tools: the [Photoshoot Label Generator](https://itmachino
 | `test-data/bad-rows.csv` | Rows with mistakes, to check the website catches them. |
 | `test-data/qr-stickers.csv` | 4 long SKUs (QR code) and 1 short SKU (barcode), for the QR print test. |
 | `tools/shopify-export-to-sheet.py` | Turns a Shopify product export into the sticker sheet with all sizes (see below). |
+| `tools/regress-test.js` | Automatic test of the whole website: search, picking sizes, Undo, count, preview, settings, copies, PDF, barcode and QR, clear, saved list. |
+| `tools/search-speed-test.js` | Measures how much work the page does while someone types. |
+| `tools/test-helpers.js`, `tools/package.json` | Shared by the two tests above. |
+| `test-data/search-test-sheet.csv` | A small invented shoe list (24 rows) used by the tests. No company data. |
 | `test-data/sizes-test.csv` | SIZES examples and mistakes (`34.5`, `abc`, SKU without size, a bag), to check the messages. |
 
 **Test stickers are for testing only.** Their prices are examples. Do not put them on shoes.
@@ -161,10 +184,25 @@ Print `test-data/test-stickers.pdf`. Every sticker must pass all checks:
 
 Pass = every box ticked, each scan works the first time.
 
+## Automatic tests
+
+Run after every change to `index.html` (PowerShell, in this folder):
+
+```powershell
+cd tools
+npm install          # once
+npm test             # about 1 minute. "0 failed" = good
+npm run speed        # optional: typing speed
+```
+
+- Needs Edge or Chrome (set `BROWSER` to its path if it is not found) and an internet connection (the page loads its PDF, barcode and QR libraries online).
+- It uses the test sheet in `test-data/`. It never touches the real Google Sheet, Shopify or a printer.
+- Compare with another version of the page: `$env:PAGE="C:\path\old-index.html"; npm run speed`.
+
 ## Changing the website
 
 1. Edit `index.html`.
-2. Open it in a browser. In ⚙ Settings, open `test-data/test-stickers.csv` (or `sizes-test.csv`).
+2. Run the automatic tests (above). Then open it in a browser. In ⚙ Settings, open `test-data/test-stickers.csv` (or `sizes-test.csv`).
 3. Tap some sizes, tap **Print**, open **Code details**: every value shows ✓.
 4. Save to GitHub:
 

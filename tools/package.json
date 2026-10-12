@@ -1,0 +1,12 @@
+{
+  "name": "display-label-generator-tests",
+  "private": true,
+  "description": "Automated tests for the sticker website (search, speed, sticker generator). Run: npm install, then npm test.",
+  "scripts": {
+    "test": "node regress-test.js",
+    "speed": "node search-speed-test.js"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.12.0"
+  }
+}

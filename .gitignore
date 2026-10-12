@@ -8,3 +8,6 @@ docs/
 
 # Shopify exports (company data)
 products_export*.csv
+
+# Test tools: installed packages
+node_modules/

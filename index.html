@@ -102,6 +102,13 @@
   .note p + p { margin-top: 4px; }
   .empty { text-align: center; color: var(--soft); padding: 48px 16px; font-size: 16px; line-height: 1.6; }
   .more-note { text-align: center; color: var(--soft); font-size: 14px; padding: 8px 0 0; }
+  .search-note { font-size: 14px; color: var(--soft); padding: 0 2px; }
+  .list .card { content-visibility: auto; contain-intrinsic-size: auto 120px; }   /* cards off the screen are not laid out: faster typing */
+  .card mark { background: var(--rose-mist); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .more { display: block; width: 100%; min-height: 48px; border: 1.5px solid var(--sand); border-radius: 14px; background: var(--shell);
+          color: var(--rose-deep); font-weight: 700; font-size: 16px; cursor: pointer; }
+  .more span { color: var(--soft); font-weight: 400; }
+  .dym { border: none; background: var(--rose-mist); color: var(--rose-deep); font-weight: 700; font-size: 16px; padding: 4px 12px; border-radius: 999px; cursor: pointer; margin-top: 6px; }
 
   /* ── Bottom bar ── */
   .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--shell); border-top: 1px solid var(--sand);
@@ -233,7 +240,9 @@
   details.pics figure { margin: 12px 0 0; }
   details.pics img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--sand); background: #fff; }
   details.pics figcaption { font-size: 14px; color: var(--soft); margin-top: 4px; }
-  .size.match { border-color: var(--rose); box-shadow: 0 0 0 3px var(--rose-mist); }
+  /* the size you searched for: an outline. A size you picked is solid pink (.on) */
+  .size.match { border-color: var(--rose); box-shadow: inset 0 0 0 1.5px var(--rose), 0 0 0 3px var(--rose-mist); }
+  .size.match.on { box-shadow: 0 0 0 3px var(--rose-mist); }
   .toast { position: fixed; left: 16px; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 25; max-width: 728px; margin: 0 auto;
            display: flex; align-items: center; gap: 12px; background: var(--ink); color: var(--shell); border-radius: 14px; padding: 12px 14px 12px 16px;
            font-size: 15px; box-shadow: 0 8px 24px rgba(59, 42, 46, 0.25); }
@@ -1452,7 +1461,6 @@ var printList = [];       // [{ sku, copies }] in the order they were picked
 var activeType = 'All';
 var PRINT_KEY = 'displayLabel.printList.v1';
 var MAX_SIZES = 40;       // a range longer than this is a typing mistake
-var LIST_MAX = 300;       // shoes shown at once (more makes a phone slow)
 
 // Filter buttons, worked out from the shoe name (first match wins).
 var TYPES = [
@@ -1580,6 +1588,7 @@ function loadData(results, source) {
     });
   });
 
+  buildSearchIndex();
   var sizes = designs.reduce(function(n, d) { return n + stickerSkus(d).length; }, 0);
   var bad = designs.filter(needsCheck).length;   // same count as the "Check sheet" button
   if (!designs.length) {
@@ -1605,6 +1614,14 @@ function checkDesign(d) {
   var own = d.single != null ? probe.warnings.filter(function(w) { return !/usual SKU/.test(w); }) : probe.warnings;
   d.warnings = own.concat(d.warnings);
   d.find = (d.shoe + ' ' + (d.base || d.single || '') + ' ' + d.priceText + ' ' + d.type).toLowerCase();
+  d.findJoined = d.find.replace(/\s+/g, '');                       // "maryjane" finds "Mary Jane"
+  d.skuKey = skuKey(d.base || d.single || '');                      // SKU without dashes / spaces
+  d.words = d.find.split(/[^a-z0-9]+/).filter(Boolean);
+  // Search index, made once when the sheet loads (so each key press only compares words):
+  d.nameLower = d.shoe.toLowerCase();
+  d.nameWords = d.nameLower.split(/[^a-z0-9]+/).filter(Boolean);
+  d.nameJoined = d.nameWords.join('');
+  d.otherWords = (String(d.base || d.single || '') + ' ' + d.priceText + ' ' + d.type).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 }
 
 // One sticker (one size) of a design, checked, with its barcode or QR code.
@@ -1692,11 +1709,215 @@ function renderBar() {
   document.getElementById('openPrint').disabled = !n;
 }
 
-// ─── SEARCH, FILTERS AND THE SHOE LIST ───────────────────────
+// ─── SEARCH ──────────────────────────────────────────────────
+// Rules (simple on purpose, made for Machino's shoe names and SKUs):
+//   - every word must match the shoe, best match first. Same score = sheet order.
+//     Order: the exact SKU, then the exact name, then a name that starts with it,
+//     then whole name words, then the start of a word, then the rest (SKU, price, type).
+//   - a full SKU ("MA6025-2-B-20-38") shows that shoe with the size circled
+//   - SKUs match without dashes, spaces or capitals ("ma6025 2", "MA60252B20")
+//   - sizes: "38", "size 38", "sz38", "s38", "eu38"
+//   - a spelling mistake is fixed ONLY when one name word is clearly the closest
+//     ("balerina" -> ballerina). If two words fit, nothing is swapped: we show "Did you mean".
+//   - a few English/Malay words (SEARCH_ALIASES below). "shoes" means anything with sizes.
+//   - joined words work ("maryjane" -> Mary Jane); "rm178" = 178
+//   - shoes are drawn PAGE_SIZE at a time; the rest load as you scroll (or tap "Show more")
 
-function searchWords() {
-  return document.getElementById('search').value.toLowerCase().split(/\s+/).filter(Boolean);
+// typed word -> the word we also look for. Add a line here to teach it a new word.
+var SEARCH_ALIASES = { kasut: 'shoes', beg: 'bags', flat: 'flats', wedge: 'wedges' };
+var SEARCH_DELAY = 80;   // ms to wait after the last key press before the list is redrawn
+var PAGE_SIZE = 30;      // shoe cards drawn at once (fewer cards = faster typing on a phone)
+
+var vocab = [];          // [{ w: word in a shoe name, n: how many shoes use it }]
+var skuByKey = {};       // SKU without dashes -> sticker SKU
+var searchCache = {};    // typed text -> { q, list }; emptied when the sheet loads
+var searchCacheN = 0;
+
+function skuKey(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+function buildSearchIndex() {
+  var count = {}, feet = {};
+  designs.forEach(function(d) {
+    d.nameWords.forEach(function(w) {
+      if (w.length < 3 || /\d/.test(w)) return;
+      count[w] = (count[w] || 0) + 1;
+      if (d.single == null) feet[w] = (feet[w] || 0) + 1;   // used by shoes (they have sizes)
+    });
+  });
+  vocab = Object.keys(count).map(function(w) { return { w: w, n: count[w], shoes: feet[w] || 0 }; });
+  skuByKey = {};
+  Object.keys(skuIndex).forEach(function(sku) { skuByKey[skuKey(sku)] = sku; });
+  searchCache = {}; searchCacheN = 0;
+  lastSig = '';
 }
+
+// Letters you must change, add or remove to turn a into b (with swaps), stopping early above max.
+function editDistance(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  var prev2 = null, prev = [], cur;
+  for (var j = 0; j <= b.length; j++) prev[j] = j;
+  for (var i = 1; i <= a.length; i++) {
+    cur = [i];
+    var best = i;
+    for (j = 1; j <= b.length; j++) {
+      var cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      if (prev2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) cur[j] = Math.min(cur[j], prev2[j - 2] + 1);
+      if (cur[j] < best) best = cur[j];
+    }
+    if (best > max) return max + 1;
+    prev2 = prev; prev = cur;
+  }
+  return prev[b.length];
+}
+
+function typoLimit(w) { return w.length >= 8 ? 2 : w.length >= 5 ? 1 : 0; }
+
+// Name words that could be what was meant, closest first.
+// Fixing a word for you needs the same first letter; a "Did you mean" suggestion (loose) does not.
+function spellOptions(w, max, loose) {
+  var found = [];
+  if (!max) return found;
+  vocab.forEach(function(v) {
+    if (!loose && v.w.charAt(0) !== w.charAt(0)) return;
+    var dist = editDistance(w, v.w, max);
+    if (dist > max && w.length >= 5 && v.w.length > w.length) { dist = editDistance(w, v.w.slice(0, w.length), max); if (dist <= max) dist += 0.5; }   // typed only the start
+    if (dist <= max + 0.5) found.push({ w: v.w, dist: dist, n: v.n, shoes: v.shoes });
+  });
+  return found.sort(function(a, b) { return a.dist - b.dist || b.n - a.n || (a.w < b.w ? -1 : 1); });
+}
+
+// How well one search word fits a shoe: 0 = not at all. (Higher = better.)
+function rawWordScore(d, w) {
+  var best = 0;
+  if ((w === 'shoes' || w === 'shoe') && d.single == null) best = 5;               // anything with sizes (not bags, cases, charms)
+  if (d.nameWords.indexOf(w) !== -1) return 8;                                     // a whole word of the name
+  if (d.nameWords.some(function(x) { return x.indexOf(w) === 0; })) return 6;      // start of a word of the name
+  if (d.otherWords.indexOf(w) !== -1) return Math.max(best, 5);                    // SKU part, price or type
+  if (d.otherWords.some(function(x) { return x.indexOf(w) === 0; })) return Math.max(best, 4);
+  if (w.length >= 3 && d.nameLower.indexOf(w) !== -1) return Math.max(best, 3);    // inside a word
+  if (w.length >= 4 && d.nameJoined.indexOf(w) !== -1) return Math.max(best, 3);   // "maryjane"
+  if (/\d/.test(w) && w.length >= 3 && d.skuKey.indexOf(skuKey(w)) !== -1) return Math.max(best, 3);   // SKU without dashes
+  return best;
+}
+
+function wordScore(d, w) {
+  var s = rawWordScore(d, w), a = SEARCH_ALIASES[w];
+  return a ? Math.max(s, rawWordScore(d, a) - 1) : s;
+}
+
+// Turns the search box text into { sizes, words, fixed, aliased, dead, sku, skuQ, terms, key }.
+function parseQuery(text) {
+  var raw = String(text || '').trim();
+  var q = { raw: raw, key: raw.toLowerCase().replace(/\s+/g, ' '), sizes: [], words: [], fixed: {}, aliased: {}, dead: [], sku: null, skuQ: '', terms: [] };
+  if (!raw) return q;
+  // A full sticker SKU (with or without dashes): that shoe, that size.
+  var whole = skuByKey[skuKey(raw)];
+  if (whole && skuKey(raw).length >= 6) { q.sku = whole; return q; }
+  var tokens = q.key.split(' ');
+  for (var i = 0; i < tokens.length; i++) {
+    var t = tokens[i], m;
+    if (/^(size|saiz|sz|eu|s)$/.test(t) && /^\d{2}$/.test(tokens[i + 1] || '')) { q.sizes.push(String(+tokens[++i])); continue; }
+    if ((m = t.match(/^(?:size|saiz|sz|eu|s)?(\d{2})$/))) { q.sizes.push(String(+m[1])); continue; }
+    t = t.replace(/^rm(?=\d)/, '');
+    if (t) q.words.push(t);
+  }
+  if (q.words.length === 1 && /\d/.test(q.words[0]) && q.words[0].length >= 4) q.skuQ = skuKey(q.words[0]);
+  q.words.forEach(function(w) {
+    if (designs.some(function(d) { return rawWordScore(d, w) > 0; })) { q.terms.push(w); return; }
+    if (SEARCH_ALIASES[w]) { q.aliased[w] = SEARCH_ALIASES[w]; q.terms.push(SEARCH_ALIASES[w]); return; }
+    q.terms.push(w);
+    if (/\d/.test(w)) return;
+    // Not in any shoe: a typo? Fix it only when ONE name word is clearly the closest:
+    // within the typo limit, and no other word is nearly as close ("sandle" could be sandals or saddle: ask).
+    var limit = typoLimit(w), opts = spellOptions(w, limit + 1);
+    if (opts.length && opts[0].dist <= limit && (opts.length === 1 || opts[1].dist - opts[0].dist >= 2)) { q.fixed[w] = opts[0].w; q.terms[q.terms.length - 1] = opts[0].w; }
+    else q.dead.push(w);
+  });
+  return q;
+}
+
+// Score of a shoe for the whole search (0 = hide it).
+function shoeScore(d, q) {
+  if (q.sizes.length && (d.single != null || !q.sizes.every(function(sz) { return d.sizes.indexOf(sz) !== -1; }))) return 0;
+  var total = 0;
+  for (var i = 0; i < q.words.length; i++) {
+    var w = q.words[i], sc = wordScore(d, w);
+    if (!sc && q.fixed[w]) sc = wordScore(d, q.fixed[w]) - 1;
+    if (sc <= 0) return 0;
+    total += sc;
+  }
+  if (q.words.length) {
+    var text = q.words.map(function(w) { return q.fixed[w] || w; }).join(' ');
+    if (d.nameLower === text) total += 12;                          // the exact name
+    else if (d.nameLower.indexOf(text) === 0) total += 6;           // the name starts with it
+    if (q.skuQ && d.skuKey === q.skuQ) total += 30;                 // the exact SKU of the shoe
+    else if (q.skuQ && d.skuKey.indexOf(q.skuQ) === 0) total += 6;
+  }
+  return total + 1;
+}
+
+// The shoes that match a search, best first. Remembered, so typing and deleting is instant.
+function searchFor(text) {
+  var hit = searchCache[String(text || '').trim().toLowerCase().replace(/\s+/g, ' ')];
+  if (hit) return hit;
+  var q = parseQuery(text);
+  var list = [];
+  designs.forEach(function(d, i) {
+    var sc = q.sku ? (skuIndex[q.sku].d === d ? 1 : 0) : shoeScore(d, q);
+    if (sc > 0) list.push({ d: d, sc: sc, i: i });
+  });
+  if (q.words.length) list.sort(function(x, y) { return y.sc - x.sc || x.i - y.i; });
+  if (searchCacheN > 300) { searchCache = {}; searchCacheN = 0; }
+  searchCacheN++;
+  return (searchCache[q.key] = { q: q, list: list });
+}
+
+// Up to 3 other searches to offer when nothing matched ("Did you mean ...?").
+function suggestions(q) {
+  var w = q.dead[0];
+  if (!w) return [];
+  var opts = spellOptions(w, Math.max(typoLimit(w), w.length >= 4 ? 2 : 0), true);
+  var same = opts.filter(function(o) { return o.w.charAt(0) === w.charAt(0); });
+  opts = same.length ? same : opts;
+  // Words about as close as the best one: the ones many shoes use come first ("sandle": sandals, then saddle).
+  var near = opts.length ? opts[0].dist + 1 : 0;
+  opts = opts.filter(function(o) { return o.dist <= near; })
+    .sort(function(a, b) { return b.shoes - a.shoes || b.n - a.n || a.dist - b.dist; })
+    .slice(0, 3);
+  return opts.map(function(o) {
+    return q.words.map(function(x) { return x === w ? o.w : x; }).concat(q.sizes).join(' ');
+  });
+}
+
+// Text as safe HTML with the searched words marked.
+function hl(text, terms) {
+  text = String(text);
+  var lower = text.toLowerCase(), marks = [];
+  if (terms.length && lower.length === text.length) {
+    terms.forEach(function(t) {
+      if (!t) return;
+      var at = 0;
+      while ((at = lower.indexOf(t, at)) !== -1) {
+        // short words only count at the start of a word ("b" marks Bliss, not the b inside Club)
+        if (t.length >= 3 || at === 0 || !/[a-z0-9]/.test(lower.charAt(at - 1))) marks.push([at, at + t.length]);
+        at += t.length;
+      }
+    });
+  }
+  if (!marks.length) return escHtml(text);
+  marks.sort(function(a, b) { return a[0] - b[0] || b[1] - a[1]; });
+  var out = '', pos = 0;
+  marks.forEach(function(m) {
+    if (m[1] <= pos) return;
+    var from = Math.max(m[0], pos);
+    out += escHtml(text.slice(pos, from)) + '<mark>' + escHtml(text.slice(from, m[1])) + '</mark>';
+    pos = m[1];
+  });
+  return out + escHtml(text.slice(pos));
+}
+
+// ─── SEARCH, FILTERS AND THE SHOE LIST ───────────────────────
 
 function needsCheck(d) { return d.errors.length || d.warnings.length; }
 
@@ -1718,29 +1939,88 @@ function renderFilters() {
   }).join('');
 }
 
-function renderList() {
-  var words = searchWords();
-  // A 2-digit word is a size: "bliss 38" = Bliss shoes that have size 38 (and 38 is marked).
-  var sizeWords = words.filter(function(w) { return /^\d{2}$/.test(w); }).map(function(w) { return String(+w); });
-  var textWords = words.filter(function(w) { return !/^\d{2}$/.test(w); });
-  var shown = designs.filter(function(d) {
-    if (activeType === 'Picked') { if (!stickerSkus(d).some(function(s) { return listIndex(s) !== -1; })) return false; }
-    else if (activeType === 'Check') { if (!needsCheck(d)) return false; }
-    else if (activeType !== 'All' && d.type !== activeType) return false;
-    if (sizeWords.length && (d.single != null || !sizeWords.every(function(s) { return d.sizes.indexOf(s) !== -1; }))) return false;
-    return textWords.every(function(w) { return d.find.indexOf(w) !== -1; });
+var listKey = '';        // what the list shows now: search + filter. A new one starts again at the first page
+var listLimit = PAGE_SIZE;
+var lastSig = '';        // what is drawn now, so the same list is not drawn twice
+var view = null;         // { shown, marked, terms } of the list on screen
+var moreObserver = null;
+
+function renderList(typing) {
+  var s = searchFor(document.getElementById('search').value);
+  var q = s.q;
+  var key = q.key + '|' + activeType;
+  if (key !== listKey) { listKey = key; listLimit = PAGE_SIZE; }
+  var marked = q.sizes.slice();
+  if (q.sku) marked = skuIndex[q.sku].size ? [skuIndex[q.sku].size] : [];
+  var shown = [];
+  s.list.forEach(function(x) {
+    var d = x.d;
+    if (activeType === 'Picked') { if (!stickerSkus(d).some(function(sku) { return listIndex(sku) !== -1; })) return; }
+    else if (activeType === 'Check') { if (!needsCheck(d)) return; }
+    else if (activeType !== 'All' && d.type !== activeType) return;
+    shown.push(x);
   });
-  var html = shown.slice(0, LIST_MAX).map(function(d) { return cardHtml(d, sizeWords); }).join('');
-  if (shown.length > LIST_MAX) html += '<p class="more-note">Showing ' + LIST_MAX + ' of ' + shown.length + '. Type in the search box to find the others.</p>';
-  document.getElementById('list').innerHTML = html;
+  var page = shown.slice(0, listLimit);
+  // Typing the same thing again (or a letter that changes nothing): leave the cards alone.
+  var sig = key + '|' + listLimit + '|' + marked.join() + '|' + page.map(function(x) { return x.i; }).join();
+  if (typing && sig === lastSig) return;
+  lastSig = sig;
+  view = { shown: shown, marked: marked, terms: q.terms, shownN: page.length };
+
+  var said = Object.keys(q.fixed).map(function(w) { return [q.fixed[w], w]; }).concat(Object.keys(q.aliased).map(function(w) { return [q.aliased[w], w]; }));
+  var html = shown.length && said.length
+    ? '<p class="search-note">Showing results for <strong>' + escHtml(said.map(function(p) { return p[0]; }).join(', ')) + '</strong> (you typed ' + escHtml(said.map(function(p) { return p[1]; }).join(', ')) + ')</p>'
+    : '';
+  html += page.map(function(x) { return cardHtml(x.d, marked, q.terms); }).join('');
+  html += moreHtml(shown.length - page.length);
+  var list = document.getElementById('list');
+  list.innerHTML = html;
+  watchMore();
+
   var empty = document.getElementById('emptyNote');
   empty.hidden = shown.length > 0;
-  empty.textContent = !designs.length ? 'No shoes yet. The list loads from the Google Sheet.'
-    : words.length ? 'No shoes match "' + words.join(' ') + '"' + (sizeWords.length ? ' (with size ' + sizeWords.join(', ') + ')' : '') + '. Try another word, or tap All.'
-    : 'No shoes here. Tap All.';
+  if (shown.length) return;
+  if (!designs.length) { empty.textContent = 'No shoes yet. The list loads from the Google Sheet.'; return; }
+  if (!q.raw) { empty.textContent = 'No shoes here. Tap All.'; return; }
+  var tips = suggestions(q);
+  empty.innerHTML = 'No shoes match &ldquo;' + escHtml(q.raw) + '&rdquo;' + (q.sizes.length && q.words.length ? ' with size ' + escHtml(q.sizes.join(', ')) : '') + '.' +
+    (tips.length
+      ? '<br>Did you mean ' + tips.map(function(t) { return '<button type="button" class="dym" data-q="' + escHtml(t) + '">' + escHtml(t) + '</button>'; }).join(' ') + '?'
+      : '<br>Try fewer words, or tap All.');
 }
 
-function cardHtml(d, marked) {
+function moreHtml(left) {
+  return left > 0 ? '<button type="button" class="more" id="moreBtn">Show ' + Math.min(PAGE_SIZE, left) + ' more <span>(' + left + ' left)</span></button>' : '';
+}
+
+// Draws the next page. The cards already on the screen are left as they are.
+function showMore() {
+  if (!view || view.shownN >= view.shown.length) return;
+  var from = view.shownN;
+  view.shownN = Math.min(view.shown.length, from + PAGE_SIZE);
+  listLimit = view.shownN;
+  var more = document.getElementById('moreBtn');
+  var html = view.shown.slice(from, view.shownN).map(function(x) { return cardHtml(x.d, view.marked, view.terms); }).join('');
+  if (more) more.insertAdjacentHTML('beforebegin', html);
+  var left = view.shown.length - view.shownN;
+  if (more) { if (left > 0) more.innerHTML = 'Show ' + Math.min(PAGE_SIZE, left) + ' more <span>(' + left + ' left)</span>'; else more.remove(); }
+  lastSig = '';
+  watchMore();
+}
+
+// The next page loads by itself when "Show more" scrolls into view. The button is the back-up.
+function watchMore() {
+  if (moreObserver) { moreObserver.disconnect(); moreObserver = null; }
+  var btn = document.getElementById('moreBtn');
+  if (!btn || !('IntersectionObserver' in window)) return;
+  moreObserver = new IntersectionObserver(function(entries) {
+    if (entries.some(function(e) { return e.isIntersecting; })) showMore();
+  }, { rootMargin: '300px' });
+  moreObserver.observe(btn);
+}
+
+function cardHtml(d, marked, terms) {
+  terms = terms || [];
   var skus = stickerSkus(d);
   var bad = d.errors.length > 0;
   var anyOn = false;
@@ -1761,8 +2041,8 @@ function cardHtml(d, marked) {
     notes += '<div class="note bad"><p>Can&rsquo;t print yet. Please tell the manager.</p></div>';
   }
   return '<div class="card' + (anyOn ? ' picked' : '') + '">' +
-    '<div class="card-top"><div class="name">' + escHtml(d.shoe || '(no name)') + '</div><div class="price">' + escHtml(d.priceText || '') + '</div></div>' +
-    '<div class="meta">' + escHtml(d.single != null ? d.single : d.base + '-…') + '</div>' +
+    '<div class="card-top"><div class="name">' + (d.shoe ? hl(d.shoe, terms) : '(no name)') + '</div><div class="price">' + escHtml(d.priceText || '') + '</div></div>' +
+    '<div class="meta">' + hl(d.single != null ? d.single : d.base + '-…', terms) + '</div>' +
     '<div class="sizes">' + sizes + '</div>' + notes + '</div>';
 }
 
@@ -1964,8 +2244,15 @@ function refreshUI() {
 (function() {
   loadSettings();
   var search = document.getElementById('search'), clearBtn = document.getElementById('searchClear');
-  search.addEventListener('input', function() { clearBtn.hidden = !search.value; renderList(); });
-  clearBtn.addEventListener('click', function() { search.value = ''; clearBtn.hidden = true; renderList(); search.focus(); });
+  // Wait a moment after the last key press, so fast typing draws the list once, not on every letter.
+  var typeTimer = null;
+  search.addEventListener('input', function() {
+    clearBtn.hidden = !search.value;
+    clearTimeout(typeTimer);
+    typeTimer = setTimeout(function() { renderList(true); }, SEARCH_DELAY);
+  });
+  search.addEventListener('keydown', function(e) { if (e.key === 'Enter') { clearTimeout(typeTimer); renderList(true); search.blur(); } });
+  clearBtn.addEventListener('click', function() { clearTimeout(typeTimer); search.value = ''; clearBtn.hidden = true; renderList(); search.focus(); });
   document.getElementById('filters').addEventListener('click', function(e) {
     var b = e.target.closest('.chip');
     if (!b) return;
@@ -1974,7 +2261,13 @@ function refreshUI() {
     renderList();
     window.scrollTo(0, 0);
   });
+  document.getElementById('emptyNote').addEventListener('click', function(e) {
+    var b = e.target.closest('.dym');
+    if (!b) return;
+    search.value = b.dataset.q; clearBtn.hidden = false; renderList(); window.scrollTo(0, 0);
+  });
   document.getElementById('list').addEventListener('click', function(e) {
+    if (e.target.closest('#moreBtn')) { showMore(); return; }
     var b = e.target.closest('button[data-sku]');
     if (b && !b.disabled) toggleSize(b.dataset.sku, b);
   });
