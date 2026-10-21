@@ -431,7 +431,7 @@
         <div class="tbl"><table>
           <tr><th>Column</th><th>What to type</th><th>Example</th></tr>
           <tr><td><strong>SHOE</strong></td><td>Shoe name</td><td>Bliss Block Heels in Black</td></tr>
-          <tr><td><strong>PRICE</strong></td><td>Price in RM, numbers only</td><td>178.20</td></tr>
+          <tr><td><strong>PRICE</strong></td><td>Price in RM, numbers only. Free item: leave it empty or type 0 (the sticker prints with no price).</td><td>178.20</td></tr>
           <tr><td><strong>SKU</strong></td><td>The SKU of <strong>any one size</strong>, exactly as in Shopify. The website changes the size at the end for each sticker.</td><td>MA6025-2-B-20-41</td></tr>
           <tr><td><strong>SIZES</strong></td><td>All sizes, exactly as in Shopify. Commas and/or a range.</td><td>34, 35-42</td></tr>
         </table></div>
@@ -685,10 +685,10 @@ function checkRow(r, noCode) {
 
   if (!r.shoe) r.warnings.push('SHOE is empty, the sticker will have no name');
 
-  r.priceValue = parsePrice(r.price);
-  if (!r.price) r.errors.push('PRICE is empty');
-  else if (isNaN(r.priceValue) || r.priceValue <= 0) r.errors.push('PRICE "' + r.price + '" is not a price (type numbers only, e.g. 208.00)');
-  r.priceText = isNaN(r.priceValue) ? '' : formatPrice(r.priceValue);
+  // Empty or 0 (a free item) is fine: the sticker prints with no price.
+  r.priceValue = r.price ? parsePrice(r.price) : 0;
+  if (isNaN(r.priceValue)) r.errors.push('PRICE "' + r.price + '" is not a price (type numbers only, e.g. 208.00, or leave it empty / 0 for a free item)');
+  r.priceText = isNaN(r.priceValue) || r.priceValue === 0 ? '' : formatPrice(r.priceValue);
 
   // SKU = barcode. Same rule Stock check uses: letters, numbers and "-", 3 to 40 long.
   r.code = r.sku.trim();
